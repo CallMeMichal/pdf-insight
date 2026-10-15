@@ -76,6 +76,18 @@ export interface GeminiConfig {
   model: string;
 }
 
+/**
+ * Do logów trafiają tylko kody błędu Google (np. `INVALID_ARGUMENT`, `API_KEY_INVALID`), bez
+ * komunikatu tekstowego — ten mógłby cytować fragmenty żądania, czyli tekstu Dokumentu.
+ */
+async function describeError(response: Response): Promise<string> {
+  const body = (await response.json().catch(() => null)) as {
+    error?: { status?: string; details?: { reason?: string }[] };
+  } | null;
+  const reasons = (body?.error?.details ?? []).flatMap((detail) => detail.reason ?? []);
+  return [body?.error?.status ?? 'brak kodu', ...reasons].join(' ');
+}
+
 const failure = (error: ModelErrorCode): ModelResponse => ({ ok: false, error });
 
 /** Adapter Gemini (`generateContent` z trybem JSON i schematem odpowiedzi). */
@@ -105,14 +117,13 @@ export function createGeminiAdapter({ apiKey, model }: GeminiConfig): ModelAdapt
         });
         if (response.status === 429) return failure('RATE_LIMITED');
         if (!response.ok) {
-          // Treść błędu od Google pomaga w diagnozie; nie zawiera tekstu Dokumentu.
-          console.error(`Gemini HTTP ${response.status}: ${(await response.text()).slice(0, 500)}`);
+          console.error(`Gemini HTTP ${response.status}: ${await describeError(response)}`);
           return failure('PROVIDER_ERROR');
         }
         body = await response.json();
       } catch (cause) {
         if (signal.aborted) return failure('TIMEOUT');
-        console.error('Gemini: błąd połączenia lub odpowiedzi', cause);
+        console.error(`Gemini: błąd połączenia lub odpowiedzi (${(cause as Error).name})`);
         return failure(cause instanceof SyntaxError ? 'PROVIDER_ERROR' : 'NETWORK_ERROR');
       }
 
