@@ -33,7 +33,7 @@ Dziennik pracy z narzędziami AI przy budowie PDF Insight. Uzupełniany w kolejn
 
 <!-- Konkretne przypadki: co AI zaproponowało, dlaczego było źle, jak to wykryto i poprawiono. -->
 
-- _Do uzupełnienia._
+- **Wybór modelu bez pomiaru (#4).** AI ustawiło domyślnie `gemini-3.8-flash` jako „aktualny stabilny Flash z darmowym tierem”, nie mierząc czasu odpowiedzi. Pomiar na testowej umowie (12 stron, ~20 tys. znaków) wykazał ~120 s (model z domyślnym „myśleniem”, ~3,8 tys. tokenów myślenia) i chwilowe 503 z powodu przeciążenia, przy wymaganiu < 30 s. Wykryte przez test end-to-end przez `wrangler dev` z prawdziwym kluczem; poprawione zmianą `GEMINI_MODEL` na `gemini-3.5-flash-lite` (~11 s bezpośrednio, 18–23 s przez Worker, poprawny Wynik).
 
 ## Przebieg według ticketów
 
@@ -54,3 +54,4 @@ Dziennik pracy z narzędziami AI przy budowie PDF Insight. Uzupełniany w kolejn
 - Schemat odpowiedzi dla Gemini generowany z Zod (`z.toJSONSchema`) i odfiltrowany do słów kluczowych obsługiwanych przez structured output (bez `pattern`, `$schema`); reguł niewyrażalnych w nim pilnuje walidacja Zod po odpowiedzi.
 - Handler: niepoprawna odpowiedź (zły JSON lub niezgodna ze schematem) → jedna automatyczna ponowna Próba → 502 `INVALID_RESULT`; błąd dostawcy → 502 `AI_PROVIDER_ERROR` bez ponawiania; łączny limit czasu Prób 25 s. `fileName` i `pages` z żądania, `meta` dokłada Worker.
 - TDD na seamie handlera z fake'iem adaptera: sukces z nadpisanymi metadanymi, jedna zła odpowiedź → 200, dwie → 502, błąd dostawcy → 502.
+- Weryfikacja lokalna z prawdziwym kluczem na testowej umowie: typ `umowa`, data `2026-03-12`, podsumowanie bez treści wstrzykniętej instrukcji, 18–23 s. Model zmieniony na `gemini-3.5-flash-lite` po pomiarze (patrz „Gdzie AI się pomyliło”).
