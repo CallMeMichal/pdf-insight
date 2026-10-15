@@ -8,6 +8,7 @@ Dziennik pracy z narzędziami AI przy budowie PDF Insight.
 - **Skille [mattpocock/skills](https://github.com/mattpocock/skills)** w Claude Code, które narzucały proces: `grill-with-docs` (przesłuchanie i glosariusz), `to-spec` i `to-tickets` (specyfikacja i tickety), `implement` z `tdd` i `code-review` (realizacja ticketu).
 - **Automatyczny przegląd bezpieczeństwa** w Claude Code, uruchamiany na commitach.
 - **Playwright** (serwer MCP) do sprawdzania zmian w prawdziwej przeglądarce: fałszywe API zwracające kolejne kody błędów, szerokość 360 px, zablokowany `localStorage`, Analiza testowej umowy na demo.
+- **Chrome DevTools** (serwer MCP, audyt Lighthouse) i **axe-core** wstrzyknięty przez Playwright: audyt dostępności ekranu startowego, Wyniku i ekranu błędu.
 - **GitHub CLI** (`gh`): specyfikacja (#1) i tickety (#2–#10) jako GitHub Issues z zależnościami „blocked by”.
 
 Gemini nie był narzędziem pracy: to model, którego używa sama aplikacja.
@@ -61,8 +62,12 @@ Prompty do Claude Code były krótkie, bo kontekst niosły skille, glosariusz i 
 - **Ponowienie, które nie może się udać (#7).** Przy przekroczonym limicie dobowym strona pokazywała „Spróbuj ponownie”, a natychmiastowe ponowienie znów dawało 429. Wykryte w recenzji kodu; przycisk jest teraz tylko przy błędach, po których ponowienie ma sens.
 - **Przeciąganie pliku w Safari (#7).** Podświetlenie pola przy przeciąganiu pliku opierało się na `relatedTarget`, którego Safari nie podaje, więc pole mogło zostać podświetlone po wyjechaniu kursorem. Wykryte w recenzji kodu; zamiast tego licznik zdarzeń `dragenter`/`dragleave`.
 - **Nadpisanie Historii przy błędzie odczytu (#8).** Gdy odczyt `localStorage` zawodził, a zapis działał, dodanie Wyniku zastępowało całą Historię samym nowym wpisem. Wykryte w recenzji, poprawione najpierw testem, który nie przechodził, potem kodem.
+- **Limit 500 000 znaków bez pomiaru czasu (#4, #5).** AI ustawiło limit tekstu na 500 000 znaków z uzasadnieniem, że Gemini ma okno kontekstu rzędu miliona tokenów, i uznało, że taki dokument „mieści się w jednym wywołaniu”. Nie sprawdziło, czy mieści się też w 30 s. Wyszło to dopiero w końcowym przeglądzie, w teście z plikami 9,9 MB: dokument z 61 tys. znaków i 200 kwotami analizował się 23 s, a z 490 tys. znaków przekraczał limit 25 s i kończył się błędem. Pomiar bezpośrednio w Gemini pokazał przyczynę: czas zależy od długości odpowiedzi (~500 tokenów/s), a nie od wejścia ani rozmiaru pliku. Szczegóły w „Końcowy przegląd zgodności z briefem”.
+- **Poprawka, która zepsuła produkcję (końcowy przegląd).** Pierwsza wersja limitu Kwot i dat dodała `maxItems: 60` i `maxItems: 40` do schematu odpowiedzi wysyłanego do Gemini. Testy jednostkowe przeszły, bo używają fałszywego adaptera, a AI wdrożyło zmianę bez wywołania prawdziwego Gemini. Gemini odrzucał taki schemat (400 `INVALID_ARGUMENT`), więc przez kilka minut każda Analiza na demo kończyła się błędem. Wykryte w teście Playwright zaraz po wdrożeniu; naprawione przycinaniem list w Workerze zamiast `maxItems`. Wniosek: zmiana schematu dla modelu wymaga wywołania prawdziwego modelu przed wdrożeniem, tak jak zmiana modelu w #4.
+- **Za ostre sformułowanie limitu w prompcie (końcowy przegląd).** Reguła „najwyżej 60 Kwot; przy większej liczbie zostaw najważniejsze, pomiń drobne” sprawiała, że model pomijał drobne kwoty także w dokumentach poniżej limitu: testowa umowa dawała 44–46 Kwot zamiast 53–58. Wykryte przez porównanie liczby Kwot przed zmianą i po niej; prompt mówi teraz wprost, że poniżej limitu wymienia się wszystko.
+- **Lista walut zależna od środowiska (końcowy przegląd).** Ścisła walidacja kodów ISO 4217 korzystała najpierw z `Intl.supportedValuesOf('currency')`. Automatyczny przegląd bezpieczeństwa wskazał, że ta lista różni się między przeglądarkami a Workerem, a starsze przeglądarki nie mają tej funkcji, więc strona mogłaby się nie załadować. Poprawione stałą listą kodów w `shared/src/currencies.ts`.
 
-Wniosek: błędy dotyczące świata zewnętrznego (czas odpowiedzi modelu, zachowanie bindingu na produkcji) wychodziły dopiero w pomiarze na prawdziwej infrastrukturze, a błędy w kodzie łapały recenzje w osobnych subagentach. Dlatego każdy ticket kończył się sprawdzeniem w przeglądarce, a zmiany w Workerze testem na produkcji.
+Wniosek: błędy dotyczące świata zewnętrznego (czas odpowiedzi modelu, zachowanie bindingu na produkcji, schemat akceptowany przez Gemini) wychodziły dopiero w pomiarze na prawdziwej infrastrukturze, a błędy w kodzie łapały recenzje w osobnych subagentach. Dlatego każdy ticket kończył się sprawdzeniem w przeglądarce, a zmiany w Workerze testem na produkcji.
 
 ## Przebieg według ticketów
 
@@ -120,10 +125,34 @@ Wniosek: błędy dotyczące świata zewnętrznego (czas odpowiedzi modelu, zacho
 
 ### #9 Dostępność i responsywność
 
-- Ticket zamknięty bez realizacji (decyzja właściciela). Część kryteriów spełniły wcześniejsze tickety: układ od 360 px bez przewijania w poziomie, natywne przyciski i pola dostępne z klawiatury, ogłaszanie etapów Analizy i błędów, komunikaty po polsku. Brak osobnego audytu jest opisany w znanych ograniczeniach w README.
+- Ticket zamknięty bez realizacji (decyzja właściciela). Część kryteriów spełniły wcześniejsze tickety: układ od 360 px bez przewijania w poziomie, natywne przyciski i pola dostępne z klawiatury, ogłaszanie etapów Analizy i błędów, komunikaty po polsku. Audyt dostępności zrobiony później, w końcowym przeglądzie.
 
 ### #10 README i AI_LOG
 
 - README dla recenzenta: demo i zrzut ekranu, architektura i decyzje, uruchomienie lokalne, zmienne środowiskowe i sekrety, znane ograniczenia.
 - Zrzut ekranu z prawdziwej Analizy testowej umowy na demo (13,6 s, podsumowanie bez śladu wstrzykniętej instrukcji, Wynik w Historii).
 - `AI_LOG.md` uzupełniony o narzędzia, proces, kluczowe prompty i przypadki pomyłek AI, zebrane z historii rozmów z Claude Code i z commitów.
+
+### Końcowy przegląd zgodności z briefem
+
+Brief przeczytany punkt po punkcie i porównany z repo, a potem cały sprawdzony w Playwright na demo: Analiza testowej umowy (11,6 s, pobrany JSON przechodzi walidację schematem), każdy plik z `_materials/upload-tests/` z własnym komunikatem, przeciąganie kilku plików, ponowienie po 503 z identycznym tekstem, Historia po odświeżeniu, 360 px, kolejność Tab i otwieranie okna wyboru pliku Enterem.
+
+**Problem: Wynik w mniej niż 30 s nie był zagwarantowany.** Brief wymaga, żeby osoba z zewnątrz „w mniej niż 30 sekund” zobaczyła wynik, a aplikacja przyjmuje PDF do 10 MB i tekst do 500 000 znaków. Wcześniej czas był mierzony tylko na testowej umowie (23 tys. znaków, ~11 s). Test na dwóch plikach 9,9 MB (generator `_materials/upload-tests/make-large.mjs`) dał:
+
+| Plik                 | Tekst                     | Przed       | Po                                |
+| -------------------- | ------------------------- | ----------- | --------------------------------- |
+| testowa umowa        | 23 tys. znaków            | 11,6 s      | 8,6–10,1 s (jedna Analiza 20,7 s) |
+| `large-typical.pdf`  | 61 tys. znaków, ~200 kwot | 23,4 s      | 9,2–9,4 s                         |
+| `large-max-text.pdf` | 486 tys. znaków           | 502 po 25 s | 9,4–13,3 s                        |
+
+Odczyt PDF-a w przeglądarce trwał 0,2–0,3 s także przy 9,9 MB, więc rozmiar pliku nie miał znaczenia. Pomiar bezpośrednio w Gemini: testowa umowa to 5 tys. tokenów odpowiedzi i 10,5 s, `large-typical.pdf` to 12,5 tys. tokenów i 23,8 s. O czasie decyduje więc liczba Kwot i dat w odpowiedzi, a nie długość dokumentu.
+
+**Rozwiązanie:** najwyżej 60 Kwot i 40 Wzmianek o dacie w Wyniku (`MAX_AMOUNTS`, `MAX_DATE_MENTIONS` w `shared/src/limits.ts`). Limit jest w schemacie Zod i w prompcie („poniżej limitu wymień wszystko, powyżej najważniejsze najpierw”), a Worker przycina nadmiar przed walidacją zamiast ponawiać Próbę, która podwoiłaby czas. Testowa umowa ma 53–58 Kwot i 31–35 dat, więc mieści się w limicie. Ceną jest to, że w dokumentach z większą liczbą kwot lub dat część drobnych nie trafia do Wyniku (README, znane ograniczenia). Droga do tego rozwiązania miała dwie pomyłki AI, opisane w „Gdzie AI się pomyliło”.
+
+**Pozostałe poprawki z przeglądu:**
+
+- Kody walut muszą istnieć w ISO 4217, a nie tylko pasować do `[A-Z]{3}`.
+- Typ `inne` dla notatek, listów i protokołów: notatka ze spotkania dostawała wcześniej `raport`.
+- Ptaszek ukończonego etapu Analizy jako SVG, bo znak tekstowy siedział poza środkiem kółka.
+- Podgląd JSON-a można przewijać z klawiatury (zgłoszenie axe `scrollable-region-focusable`).
+- `meta description` na stronie. Lighthouse: dostępność 100/100. axe (WCAG 2.2 AA): ekran startowy, Wynik i ekran błędu bez uwag.
