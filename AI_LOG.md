@@ -106,7 +106,7 @@ Wniosek: błędy dotyczące świata zewnętrznego (czas odpowiedzi modelu, zacho
 - TDD na dwóch czystych seamach (konwencja z #6, UI i pdf.js testowane ręcznie):
   - `web/src/lib/pdfCheck.ts`: wybór jednego PDF-a (nie-PDF, > 10 MB, kilka plików), sprawdzenie tekstu (brak tekstu, > 500 000 znaków), rozpoznanie wyjątków pdf.js (hasło vs uszkodzony plik).
   - `web/src/lib/messages.ts`: każdy błąd odczytu i każdy kod z Workera (400, 403, 413, 429 z czasem z `Retry-After`, 502, 503, błąd sieci) → osobny komunikat po polsku i informacja, czy ponowienie ma sens.
-- Weryfikacja w przeglądarce z fałszywym API zwracającym kolejno każdy kod błędu oraz z wygenerowanymi plikami testowymi (`_materials/testy-uploadu/`, generator `makepdfs.mjs`): wszystkie komunikaty, ponowienie po 503 wysyła identyczny tekst, brak przewijania w poziomie przy 360 px.
+- Weryfikacja w przeglądarce z fałszywym API zwracającym kolejno każdy kod błędu oraz z wygenerowanymi plikami testowymi (`_materials/upload-tests/`, generator `makepdfs.mjs`): wszystkie komunikaty, ponowienie po 503 wysyła identyczny tekst, brak przewijania w poziomie przy 360 px.
 - Poprawki po recenzji AI: brak przycisku „Spróbuj ponownie” przy dobowym limicie (natychmiastowe ponowienie znów dałoby 429), błąd odczytu pliku z dysku z osobnym komunikatem, licznik `dragenter`/`dragleave` zamiast `relatedTarget` (Safari go nie podaje).
 - Znane ograniczenie: Worker odpowiada na niedozwolony origin (403) bez nagłówków CORS, więc przeglądarka widzi to jako błąd sieci i komunikat dla 403 w praktyce się nie pojawia.
 

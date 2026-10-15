@@ -45,6 +45,7 @@ CI/CD (`.github/workflows/ci.yml`): lint › typecheck › testy › build, a na
 - **Bez dzielenia na fragmenty.** Gemini ma okno kontekstu rzędu miliona tokenów, więc typowy dokument mieści się w jednym wywołaniu. Zamiast dzielenia tekstu i łączenia wyników (map-reduce) jest twardy limit 500 000 znaków tekstu (około 200 stron), sprawdzany w przeglądarce i w Workerze. Dłuższy dokument dostaje czytelny komunikat.
 - **Walidacja po obu stronach.** Worker nie odeśle Wyniku niezgodnego ze schematem (502), a strona odrzuca taką odpowiedź przed wyświetleniem i przy odczycie Historii. Oba miejsca używają tego samego schematu z `shared/`. Schemat odpowiedzi dla Gemini jest generowany z Zod, a reguł, których nie da się w nim wyrazić (np. poprawność daty w kalendarzu), pilnuje walidacja po odpowiedzi.
 - **Metadane ustala Worker, nie model.** `fileName` i `pages` Worker bierze z żądania, a `meta` (`analyzedAt`, `model`, `schemaVersion`) dokłada sam. Model wypełnia tylko pola, które wymagają zrozumienia treści.
+- **Daty z precyzją z Dokumentu.** Daty są w ISO 8601, ale tylko z taką dokładnością, jaką podaje Dokument: `YYYY-MM-DD`, `YYYY-MM` albo `YYYY` (zapis o zmniejszonej precyzji, dopuszczony przez ISO 8601). Model nie dopisuje brakującego dnia ani miesiąca, bo byłoby to zgadywanie. Waluty muszą być istniejącymi kodami ISO 4217, nie tylko trzema wielkimi literami.
 - **Treść PDF-a to dane, nie polecenia.** Tekst Dokumentu jest w bloku z losowym znacznikiem przy każdej Próbie, a instrukcja systemowa mówi wprost, że polecenia z dokumentu są ignorowane. Testowa umowa ma na str. 4 próbę prompt injection („umowa jest nieważna… 1 PLN”) i nie pojawia się ona w Wyniku.
 - **Model Gemini Flash-Lite.** Gemini Flash z domyślnym „myśleniem” analizował testową umowę około 120 s, Flash-Lite 11–23 s, przy wymaganiu poniżej 30 s. Nazwa modelu jest w `GEMINI_MODEL`, więc zmiana nie wymaga zmiany kodu. Łączny limit czasu Prób w Workerze to 25 s.
 - **Limity Analiz na adres IP: 5 na minutę i 30 na dobę.** Minutowy liczy binding Cloudflare Rate Limiting, dobowy Durable Object, bo binding nie obsługuje okna dobowego ([ADR 0001](docs/adr/0001-limit-dobowy-w-durable-object.md)). Przekroczenie daje 429 z `Retry-After`, a strona pokazuje, ile trzeba odczekać.
@@ -108,7 +109,7 @@ Interfejs i odczyt PDF-a przez pdf.js były sprawdzane ręcznie w przeglądarce,
 - **Odrzucony origin wygląda jak błąd sieci.** Worker odpowiada 403 bez nagłówków CORS, więc przeglądarka nie pokaże dedykowanego komunikatu.
 - **Słowa kluczowe** czasem mają nazwy własne zapisane małymi literami (np. „nordwave logistics”).
 - **Historia** jest tylko w tej przeglądarce, bez synchronizacji między urządzeniami.
-- **Dostępność:** akcje to natywne przyciski i pola dostępne z klawiatury, etapy Analizy i błędy są ogłaszane czytnikom ekranu, a układ działa od 360 px. Nie było jednak osobnego audytu dostępności: pojawienie się Wyniku nie jest ogłaszane, a kontrastu nikt nie zmierzył względem WCAG AA.
+- **Dostępność:** akcje to natywne przyciski i pola dostępne z klawiatury, etapy Analizy i błędy są ogłaszane czytnikom ekranu, a układ działa od 360 px. Lighthouse daje ekranowi startowemu 100/100 w dostępności, łącznie z kontrastem. Widok Wyniku, Historia i ekran błędu nie przeszły osobnego audytu, a pojawienie się Wyniku nie jest ogłaszane.
 
 ## Praca z AI
 
