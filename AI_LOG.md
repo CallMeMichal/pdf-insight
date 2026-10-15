@@ -62,3 +62,14 @@ Dziennik pracy z narzędziami AI przy budowie PDF Insight. Uzupełniany w kolejn
 - Eksport (`web/src/components/ResultExport.tsx`): zwijany podgląd pełnego JSON-a i pobranie pliku `<nazwa PDF-a>.json`; podgląd i plik powstają z tego samego łańcucha.
 - TDD na nowym seamie uzgodnionym przy tickecie — czysty moduł formatowania `web/src/lib/format.ts` (`web/src/lib/format.test.ts`): Kwoty w `pl-PL` (domyślny format nie grupuje liczb czterocyfrowych, stąd `useGrouping: 'always'`), daty z precyzją `YYYY-MM-DD`/`YYYY-MM`/`YYYY`, odmiana „strona/strony/stron”, nazwa Języka dokumentu, nazwa pliku eksportu. Komponenty bez testów automatycznych, zgodnie ze specem.
 - Weryfikacja w przeglądarce: odpowiedź-zaślepka z pustymi listami i HTML-em w podsumowaniu (wyświetlony jako tekst, brak przewijania w poziomie przy 360 px, plik = podgląd) oraz prawdziwa Analiza testowej umowy przez lokalny Worker (13 s).
+
+### #7 Upload, stany ekranu i komunikaty błędów
+
+- Pole wyboru Dokumentu (`web/src/components/Dropzone.tsx`): przeciągnięcie albo wybór z okna systemowego, informacja, że tekst trafia do Google Gemini (darmowy plan) i że nie należy wgrywać dokumentów poufnych. Plik upuszczony poza polem nie otwiera się w karcie przeglądarki.
+- Stany ekranu `empty → reading → analyzing → result | error` w `web/src/App.tsx`, etapy „Odczytuję tekst…” / „Analizuję dokument…” (`web/src/components/AnalysisProgress.tsx`). „Spróbuj ponownie” ponawia tę samą Analizę z zachowanym tekstem, bez ponownego odczytu PDF-a. Po Wyniku „Analizuj kolejny plik”.
+- TDD na dwóch czystych seamach (konwencja z #6, UI i pdf.js testowane ręcznie):
+  - `web/src/lib/pdfCheck.ts`: wybór jednego PDF-a (nie-PDF, > 10 MB, kilka plików), sprawdzenie tekstu (brak tekstu, > 500 000 znaków), rozpoznanie wyjątków pdf.js (hasło vs uszkodzony plik).
+  - `web/src/lib/messages.ts`: każdy błąd odczytu i każdy kod z Workera (400, 403, 413, 429 z czasem z `Retry-After`, 502, 503, błąd sieci) → osobny komunikat po polsku i informacja, czy ponowienie ma sens.
+- Weryfikacja w przeglądarce z fałszywym API zwracającym kolejno każdy kod błędu oraz z wygenerowanymi plikami testowymi (`_materials/testy-uploadu/`, generator `makepdfs.mjs`): wszystkie komunikaty, ponowienie po 503 wysyła identyczny tekst, brak przewijania w poziomie przy 360 px.
+- Poprawki po recenzji AI: brak przycisku „Spróbuj ponownie” przy dobowym limicie (natychmiastowe ponowienie znów dałoby 429), błąd odczytu pliku z dysku z osobnym komunikatem, licznik `dragenter`/`dragleave` zamiast `relatedTarget` (Safari go nie podaje).
+- Znane ograniczenie: Worker odpowiada na niedozwolony origin (403) bez nagłówków CORS, więc przeglądarka widzi to jako błąd sieci i komunikat dla 403 w praktyce się nie pojawia.
