@@ -24,3 +24,9 @@ Dziennik pracy z narzędziami AI przy budowie PDF Insight. Uzupełniany w kolejn
 
 - Struktura workspace npm (`shared`, `worker`, `web`), CI/CD, Worker zwracający Result-zaślepkę.
 - TDD na seamie handlera Workera (`worker/src/handler.test.ts`): CORS, preflight, 400/403/404/405.
+
+### #3 Schemat Wyniku
+
+- Schemat Zod Wyniku (`Result`) w `shared` (`shared/src/result.ts`) jako jedyne źródło prawdy; typ TypeScript wyprowadzany ze schematu, stałe limitów w `shared/src/limits.ts`.
+- TDD na seamie schematu (`shared/src/result.test.ts`): poprawne Wyniki (pełny, puste listy i `null`, każda precyzja daty) i niepoprawne Wyniki (brak pola, `type`, waluta, język, data, liczność `keyPoints`/`keywords`, `pages`, `meta`).
+- Worker waliduje Wynik przed odesłaniem (502 `INVALID_RESULT`), web waliduje odpowiedź przed wyświetleniem (`INVALID_RESPONSE`).
