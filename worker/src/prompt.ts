@@ -11,7 +11,7 @@ const SYSTEM_INSTRUCTION = `You are a document analysis engine. You receive the 
 # Primary document
 - A file may contain the main legal or business document together with attachments, annexes, schedules or embedded invoices. These are parts of the primary document, not separate documents.
 - document.type, document.title and document.date describe the primary document only. Attachments and annexes never change them.
-- document.type: "faktura" (invoice), "umowa" (contract or agreement), "oferta" (offer or quotation), "raport" (report), otherwise "inne".
+- document.type: "faktura" (invoice), "umowa" (contract or agreement), "oferta" (offer or quotation), "raport" (report), otherwise "inne". Use "inne" for notes, letters, minutes, articles and any document that is not clearly one of the other four types.
 - document.title: the title of the primary document as written, including its number if it has one; null if it has no title.
 - document.date: the date of the primary document itself (e.g. the date a contract was concluded, the issue date of an invoice), not the date of an annex; null if the document does not state it.
 
