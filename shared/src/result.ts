@@ -23,10 +23,16 @@ export const partialDateSchema = z.string().refine(isPartialDate, {
   message: 'Oczekiwano daty w formacie YYYY-MM-DD, YYYY-MM lub YYYY',
 });
 
+/** Kody walut ISO 4217 znane środowisku (przeglądarka, Node i Worker mają tę samą listę ICU). */
+const ISO_4217_CODES = new Set(Intl.supportedValuesOf('currency'));
+
 export const amountSchema = z.object({
   value: z.number(),
-  /** Kod waluty ISO 4217, np. `PLN`. */
-  currency: z.string().regex(/^[A-Z]{3}$/),
+  /** Kod waluty ISO 4217, np. `PLN` — istniejący, nie tylko trzy wielkie litery. */
+  currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .refine((code) => ISO_4217_CODES.has(code), { message: 'Nieznany kod waluty ISO 4217' }),
   context: z.string(),
 });
 

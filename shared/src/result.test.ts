@@ -102,7 +102,7 @@ describe('resultSchema — niepoprawne Wyniki', () => {
     });
   });
 
-  it.each(['pln', 'PL', 'PLNN', 'zł', ''])('odrzuca kod waluty %j', (currency) => {
+  it.each(['pln', 'PL', 'PLNN', 'zł', '', 'ABC', 'XYZ'])('odrzuca kod waluty %j', (currency) => {
     expectInvalid((result) => {
       result.amounts = [{ value: 100, currency, context: 'kwota' }];
     });
