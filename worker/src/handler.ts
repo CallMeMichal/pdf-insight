@@ -1,4 +1,4 @@
-import type { AnalyzeErrorCode, AnalyzeRequest } from '@pdf-insight/shared';
+import { resultSchema, type AnalyzeErrorCode, type AnalyzeRequest } from '@pdf-insight/shared';
 import { corsHeaders, isOriginAllowed } from './cors';
 import { stubResult } from './stubResult';
 
@@ -49,5 +49,9 @@ export async function handleRequest(request: Request, config: HandlerConfig): Pr
   const analyzeRequest = parseAnalyzeRequest(body);
   if (!analyzeRequest) return error('INVALID_INPUT', 400, cors);
 
-  return json(stubResult(analyzeRequest), 200, cors);
+  // Niepoprawny Wynik nigdy nie opuszcza Workera.
+  const parsed = resultSchema.safeParse(stubResult(analyzeRequest));
+  if (!parsed.success) return error('INVALID_RESULT', 502, cors);
+
+  return json(parsed.data, 200, cors);
 }

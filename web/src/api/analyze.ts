@@ -1,7 +1,16 @@
-import type { AnalyzeErrorCode, AnalyzeRequest, Result } from '@pdf-insight/shared';
+import {
+  resultSchema,
+  type AnalyzeErrorCode,
+  type AnalyzeRequest,
+  type Result,
+} from '@pdf-insight/shared';
 
-/** Kod błędu z Workera albo błąd po stronie przeglądarki (sieć, nieoczekiwany status). */
-export type ClientErrorCode = AnalyzeErrorCode | 'NETWORK_ERROR' | `HTTP_${number}`;
+/**
+ * Kod błędu z Workera albo błąd wykryty w przeglądarce: sieć, nieoczekiwany status
+ * lub odpowiedź, która nie jest Wynikiem zgodnym ze schematem.
+ */
+export type ClientErrorCode =
+  AnalyzeErrorCode | 'NETWORK_ERROR' | 'INVALID_RESPONSE' | `HTTP_${number}`;
 
 const API_URL = import.meta.env.VITE_API_URL.replace(/\/+$/, '');
 
@@ -15,7 +24,7 @@ export class AnalyzeError extends Error {
   }
 }
 
-/** Wysyła tekst Dokumentu do Workera i zwraca Wynik. */
+/** Wysyła tekst Dokumentu do Workera i zwraca Wynik zwalidowany schematem. */
 export async function analyze(request: AnalyzeRequest): Promise<Result> {
   let response: Response;
   try {
@@ -37,5 +46,9 @@ export async function analyze(request: AnalyzeRequest): Promise<Result> {
     throw new AnalyzeError(code);
   }
 
-  return (await response.json()) as Result;
+  // Wynik niezgodny ze schematem nigdy nie trafia do widoku.
+  const body: unknown = await response.json().catch(() => null);
+  const parsed = resultSchema.safeParse(body);
+  if (!parsed.success) throw new AnalyzeError('INVALID_RESPONSE');
+  return parsed.data;
 }

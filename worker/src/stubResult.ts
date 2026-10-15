@@ -1,4 +1,4 @@
-import type { AnalyzeRequest, Result } from '@pdf-insight/shared';
+import { SCHEMA_VERSION, type AnalyzeRequest, type Result } from '@pdf-insight/shared';
 
 /** Stały przykładowy Wynik zwracany, dopóki Worker nie odpytuje Gemini. */
 export function stubResult({ fileName, pages }: AnalyzeRequest): Result {
@@ -28,7 +28,7 @@ export function stubResult({ fileName, pages }: AnalyzeRequest): Result {
     meta: {
       analyzedAt: new Date().toISOString(),
       model: 'stub',
-      schemaVersion: 1,
+      schemaVersion: SCHEMA_VERSION,
     },
   };
 }

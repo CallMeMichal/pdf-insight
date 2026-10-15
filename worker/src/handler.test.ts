@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { Result } from '@pdf-insight/shared';
+import { resultSchema, type Result } from '@pdf-insight/shared';
 import { handleRequest, type HandlerConfig } from './handler';
 
 const DEMO_ORIGIN = 'https://callmemichal.github.io';
@@ -19,7 +19,7 @@ function analyzeRequest(body: unknown, origin = DEMO_ORIGIN): Request {
 const validBody = { text: 'Treść umowy', fileName: 'umowa.pdf', pages: 3 };
 
 describe('POST /analyze', () => {
-  it('zwraca 200 i Result z fileName i pages z żądania', async () => {
+  it('zwraca 200 i Wynik z fileName i pages z żądania', async () => {
     const response = await handleRequest(analyzeRequest(validBody), config);
 
     expect(response.status).toBe(200);
@@ -28,6 +28,13 @@ describe('POST /analyze', () => {
     expect(result.document.pages).toBe(3);
     expect(typeof result.summary).toBe('string');
     expect(result.meta.schemaVersion).toBe(1);
+  });
+
+  it('zwraca Wynik zgodny ze schematem', async () => {
+    const response = await handleRequest(analyzeRequest(validBody), config);
+
+    const parsed = resultSchema.safeParse(await response.json());
+    expect(parsed.error).toBeUndefined();
   });
 
   it('ustawia nagłówek CORS dla dozwolonego originu', async () => {
