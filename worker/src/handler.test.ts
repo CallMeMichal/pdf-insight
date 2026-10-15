@@ -276,21 +276,30 @@ describe('POST /analyze', () => {
 });
 
 describe('limit Analiz na adres IP', () => {
-  it('zwraca 429 RATE_LIMITED z Retry-After, bez wywołania modelu', async () => {
-    const model = fakeModel();
-    const rateLimiter = fakeRateLimiter({ ok: false, retryAfterSeconds: 42 });
+  it.each([
+    ['minutowy', 'minute', 42, 'MINUTE_RATE_LIMITED'],
+    ['dobowy', 'day', 34_452, 'DAILY_RATE_LIMITED'],
+  ] as const)(
+    'po przekroczeniu limitu (%s) zwraca 429 z odrębnym kodem i Retry-After, bez wywołania modelu',
+    async (_, window, retryAfterSeconds, code) => {
+      const model = fakeModel();
+      const rateLimiter = fakeRateLimiter({ ok: false, window, retryAfterSeconds });
 
-    const response = await handleRequest(analyzeRequest(validBody), configWith(model, rateLimiter));
+      const response = await handleRequest(
+        analyzeRequest(validBody),
+        configWith(model, rateLimiter),
+      );
 
-    expect(response.status).toBe(429);
-    expect(await response.json()).toEqual({ error: 'RATE_LIMITED' });
-    expect(response.headers.get('Retry-After')).toBe('42');
-    expect(model.calls).toHaveLength(0);
-    expect(rateLimiter.calls).toEqual([CLIENT_IP]);
-  });
+      expect(response.status).toBe(429);
+      expect(await response.json()).toEqual({ error: code });
+      expect(response.headers.get('Retry-After')).toBe(String(retryAfterSeconds));
+      expect(model.calls).toHaveLength(0);
+      expect(rateLimiter.calls).toEqual([CLIENT_IP]);
+    },
+  );
 
   it('udostępnia przeglądarce nagłówek Retry-After przez CORS', async () => {
-    const rateLimiter = fakeRateLimiter({ ok: false, retryAfterSeconds: 42 });
+    const rateLimiter = fakeRateLimiter({ ok: false, window: 'minute', retryAfterSeconds: 42 });
 
     const response = await handleRequest(
       analyzeRequest(validBody),

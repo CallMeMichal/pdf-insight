@@ -1,8 +1,6 @@
 import { DurableObject } from 'cloudflare:workers';
+import { ANALYSES_PER_DAY } from '@pdf-insight/shared';
 import type { RateLimitDecision, RateLimiter } from './rateLimit';
-
-/** Dobowy limit Analiz na adres IP (doba UTC). */
-const ANALYSES_PER_DAY = 30;
 
 /**
  * Okno bindingu Rate Limiting (`period` w wrangler.toml, tam też limit). Binding nie
@@ -30,7 +28,11 @@ export class DailyAnalysisCounter extends DurableObject {
     const usage = await this.ctx.storage.get<DailyUsage>('usage');
     const count = usage?.day === day ? usage.count : 0;
     if (count >= ANALYSES_PER_DAY) {
-      return { ok: false, retryAfterSeconds: Math.ceil((dayEnd - now.getTime()) / 1000) };
+      return {
+        ok: false,
+        window: 'day',
+        retryAfterSeconds: Math.ceil((dayEnd - now.getTime()) / 1000),
+      };
     }
 
     await this.ctx.storage.put<DailyUsage>('usage', { day, count: count + 1 });
@@ -52,7 +54,9 @@ export function createCloudflareRateLimiter(
   return {
     async check(clientIp) {
       const minute = await perMinute.limit({ key: clientIp });
-      if (!minute.success) return { ok: false, retryAfterSeconds: MINUTE_WINDOW_SECONDS };
+      if (!minute.success) {
+        return { ok: false, window: 'minute', retryAfterSeconds: MINUTE_WINDOW_SECONDS };
+      }
       // Licznik dobowy rośnie tylko dla Analiz, które zmieściły się w limicie minutowym.
       return daily.get(daily.idFromName(clientIp)).consume();
     },

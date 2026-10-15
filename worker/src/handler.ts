@@ -32,7 +32,8 @@ const ERROR_STATUS: Record<AnalyzeErrorCode, number> = {
   METHOD_NOT_ALLOWED: 405,
   TEXT_TOO_LONG: 413,
   PAYLOAD_TOO_LARGE: 413,
-  RATE_LIMITED: 429,
+  MINUTE_RATE_LIMITED: 429,
+  DAILY_RATE_LIMITED: 429,
   INVALID_RESULT: 502,
   AI_PROVIDER_ERROR: 502,
   // Wyczerpany limit dostawcy AI to stan przejściowy, a nie błąd dostawcy — stąd 503.
@@ -172,7 +173,8 @@ export async function handleRequest(request: Request, config: HandlerConfig): Pr
   const clientIp = request.headers.get('CF-Connecting-IP') ?? 'unknown';
   const decision = await config.rateLimiter.check(clientIp);
   if (!decision.ok) {
-    return error('RATE_LIMITED', {
+    const code = decision.window === 'minute' ? 'MINUTE_RATE_LIMITED' : 'DAILY_RATE_LIMITED';
+    return error(code, {
       ...cors,
       'Retry-After': String(decision.retryAfterSeconds),
     });

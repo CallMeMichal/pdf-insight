@@ -11,8 +11,8 @@ ALLOWED_ORIGINS = "https://callmemichal.github.io"
 # Klucz API to sekret: `npx wrangler secret put GEMINI_API_KEY`.
 GEMINI_MODEL = "gemini-3.5-flash-lite"
 
-# Limit 5 Analiz na minutę na adres IP. Binding obsługuje tylko okna 10 s i 60 s, więc limit
-# dobowy (30 Analiz) liczy Durable Object poniżej. `namespace_id` to dowolna liczba unikalna
+# Limit Analiz na minutę na adres IP — musi być równy ANALYSES_PER_MINUTE w shared/src/limits.ts.
+# Binding obsługuje tylko okna 10 s i 60 s, więc limit dobowy liczy Durable Object poniżej. `namespace_id` to dowolna liczba unikalna
 # w obrębie konta Cloudflare.
 [[ratelimits]]
 name = "MINUTE_RATE_LIMITER"

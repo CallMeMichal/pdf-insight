@@ -4,6 +4,13 @@ export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
 /** Maksymalna długość tekstu Dokumentu (limit obowiązuje w web i w Workerze). */
 export const MAX_TEXT_LENGTH = 500_000;
 
+/**
+ * Limity Analiz na adres IP (Worker; web pokazuje je w komunikatach). Limit minutowy egzekwuje
+ * binding Rate Limiting, więc musi zgadzać się z `simple.limit` w `worker/wrangler.toml`.
+ */
+export const ANALYSES_PER_MINUTE = 5;
+export const ANALYSES_PER_DAY = 30;
+
 /** Dozwolona liczba punktów kluczowych w Wyniku. */
 export const MIN_KEY_POINTS = 3;
 export const MAX_KEY_POINTS = 7;

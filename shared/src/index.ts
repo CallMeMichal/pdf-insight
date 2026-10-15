@@ -24,7 +24,9 @@ export type AnalyzeErrorCode =
   | 'AI_PROVIDER_ERROR'
   /** Wyczerpany limit dostawcy AI, wspólny dla wszystkich użytkowników; stan przejściowy. */
   | 'AI_QUOTA_EXCEEDED'
-  /** Przekroczony limit Analiz z adresu IP; czas oczekiwania w nagłówku `Retry-After`. */
-  | 'RATE_LIMITED'
+  /** Przekroczony minutowy limit Analiz z adresu IP; czas oczekiwania w nagłówku `Retry-After`. */
+  | 'MINUTE_RATE_LIMITED'
+  /** Przekroczony dobowy limit Analiz z adresu IP; czas oczekiwania w nagłówku `Retry-After`. */
+  | 'DAILY_RATE_LIMITED'
   | 'NOT_FOUND'
   | 'METHOD_NOT_ALLOWED';
