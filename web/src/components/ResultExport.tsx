@@ -28,7 +28,10 @@ export function ResultExport({ result }: ResultExportProps) {
       </button>
       <details>
         <summary>Pokaż pełny JSON</summary>
-        <pre>{json}</pre>
+        {/* Przewijany obszar musi przyjmować fokus, żeby dało się go przewinąć klawiaturą. */}
+        <pre tabIndex={0} aria-label="Pełny JSON Wyniku">
+          {json}
+        </pre>
       </details>
     </section>
   );
