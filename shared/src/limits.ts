@@ -1,5 +1,6 @@
 /** Maksymalny rozmiar wgrywanego PDF-a (limit obowiązuje w web). */
-export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024;
+export const MAX_FILE_SIZE_MB = 10;
+export const MAX_FILE_SIZE_BYTES = MAX_FILE_SIZE_MB * 1024 * 1024;
 
 /** Maksymalna długość tekstu Dokumentu (limit obowiązuje w web i w Workerze). */
 export const MAX_TEXT_LENGTH = 500_000;

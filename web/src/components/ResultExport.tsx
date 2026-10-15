@@ -23,7 +23,7 @@ export function ResultExport({ result }: ResultExportProps) {
   return (
     <section className="result-section result-export">
       <h3>JSON</h3>
-      <button type="button" onClick={() => downloadJson(json, fileName)}>
+      <button type="button" className="button" onClick={() => downloadJson(json, fileName)}>
         Pobierz {fileName}
       </button>
       <details>

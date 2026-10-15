@@ -1,58 +1,125 @@
-import { useState } from 'react';
-import type { Result } from '@pdf-insight/shared';
+import { useEffect, useRef, useState } from 'react';
+import { flushSync } from 'react-dom';
+import type { AnalyzeRequest, Result } from '@pdf-insight/shared';
 import { analyze } from './api/analyze';
-import { analyzeErrorMessage, type AnalyzeErrorMessage } from './api/messages';
-import { FileInput } from './components/FileInput';
+import { AnalysisProgress } from './components/AnalysisProgress';
+import { Dropzone } from './components/Dropzone';
 import { ResultView } from './components/ResultView';
+import { errorMessage, type ErrorMessage } from './lib/messages';
+import { pickPdf, PdfReadError } from './lib/pdfCheck';
 
 type ScreenState =
   | { status: 'empty' }
-  | { status: 'reading' }
-  | { status: 'analyzing' }
+  | { status: 'reading'; fileName: string }
+  | { status: 'analyzing'; request: AnalyzeRequest }
   | { status: 'result'; result: Result }
-  | { status: 'error'; message: AnalyzeErrorMessage };
+  /** `request` jest zachowany, gdy tekst został już odczytany — wtedy można ponowić Analizę. */
+  | { status: 'error'; message: ErrorMessage; request: AnalyzeRequest | null };
 
 export function App() {
   const [state, setState] = useState<ScreenState>({ status: 'empty' });
-  const busy = state.status === 'reading' || state.status === 'analyzing';
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  async function handleFile(file: File) {
-    setState({ status: 'reading' });
-    let pdf;
-    try {
-      // pdf.js jest duży, więc ładujemy go dopiero przy pierwszym pliku.
-      const { readPdf } = await import('./lib/pdf');
-      pdf = await readPdf(file);
-    } catch {
-      setState({
-        status: 'error',
-        message: { tone: 'error', text: 'Nie udało się odczytać tekstu z tego PDF-a.' },
-      });
-      return;
-    }
+  // Plik upuszczony poza polem wyboru Dokumentu (albo w trakcie Analizy) otworzyłby się w karcie
+  // przeglądarki, a bieżąca Analiza by przepadła.
+  useEffect(() => {
+    const preventOpen = (event: DragEvent) => event.preventDefault();
+    window.addEventListener('dragover', preventOpen);
+    window.addEventListener('drop', preventOpen);
+    return () => {
+      window.removeEventListener('dragover', preventOpen);
+      window.removeEventListener('drop', preventOpen);
+    };
+  }, []);
 
-    setState({ status: 'analyzing' });
+  async function runAnalysis(request: AnalyzeRequest) {
+    setState({ status: 'analyzing', request });
     try {
-      setState({ status: 'result', result: await analyze(pdf) });
+      setState({ status: 'result', result: await analyze(request) });
     } catch (error) {
-      setState({ status: 'error', message: analyzeErrorMessage(error) });
+      setState({ status: 'error', message: errorMessage(error), request });
     }
   }
 
+  async function handleFiles(files: File[]) {
+    const fail = (error: unknown) =>
+      setState({ status: 'error', message: errorMessage(error), request: null });
+
+    let file: File;
+    try {
+      file = pickPdf(files);
+    } catch (error) {
+      fail(error);
+      return;
+    }
+
+    setState({ status: 'reading', fileName: file.name });
+    let request: AnalyzeRequest;
+    try {
+      // pdf.js jest duży, więc ładujemy go dopiero przy pierwszym pliku.
+      const pdf = await import('./lib/pdf').catch(() => {
+        throw new PdfReadError('READER_UNAVAILABLE');
+      });
+      request = await pdf.readPdf(file);
+    } catch (error) {
+      fail(error);
+      return;
+    }
+
+    await runAnalysis(request);
+  }
+
+  function startOver() {
+    // Pole uploadu musi być w DOM-ie, zanim przeniesiemy na nie fokus.
+    flushSync(() => setState({ status: 'empty' }));
+    fileInputRef.current?.focus();
+  }
+
+  const showDropzone = state.status === 'empty' || state.status === 'error';
+  const retryRequest = state.status === 'error' && state.message.retryable ? state.request : null;
+
   return (
     <main>
-      <h1>PDF Insight</h1>
-      <FileInput disabled={busy} onFile={(file) => void handleFile(file)} />
+      <header className="app-header">
+        <h1>PDF Insight</h1>
+        <p>
+          Wgraj umowę, fakturę, ofertę albo raport w PDF-ie, a dostaniesz podsumowanie, strony,
+          kwoty i daty — do przejrzenia i pobrania jako JSON.
+        </p>
+      </header>
+
       <div aria-live="polite">
-        {state.status === 'reading' && <p>Odczytuję tekst z PDF-a…</p>}
-        {state.status === 'analyzing' && <p>Analizuję dokument…</p>}
-        {state.status === 'error' && (
-          <p className={state.message.tone} role="alert">
-            {state.message.text}
-          </p>
+        {(state.status === 'reading' || state.status === 'analyzing') && (
+          <AnalysisProgress
+            stage={state.status}
+            fileName={state.status === 'reading' ? state.fileName : state.request.fileName}
+          />
         )}
       </div>
-      {state.status === 'result' && <ResultView result={state.result} />}
+
+      {state.status === 'error' && (
+        <div className={`notice ${state.message.tone}`} role="alert">
+          <p>{state.message.text}</p>
+          {retryRequest && (
+            <button type="button" className="button" onClick={() => void runAnalysis(retryRequest)}>
+              Spróbuj ponownie
+            </button>
+          )}
+        </div>
+      )}
+
+      {showDropzone && <Dropzone ref={fileInputRef} onFiles={(files) => void handleFiles(files)} />}
+
+      {state.status === 'result' && (
+        <>
+          <div className="result-actions">
+            <button type="button" className="button" onClick={startOver}>
+              Analizuj kolejny plik
+            </button>
+          </div>
+          <ResultView result={state.result} />
+        </>
+      )}
     </main>
   );
 }
