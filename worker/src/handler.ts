@@ -7,7 +7,7 @@ import {
 } from '@pdf-insight/shared';
 import { corsHeaders, isOriginAllowed } from './cors';
 import type { ModelAdapter } from './model';
-import { generatedResultSchema, type GeneratedResult } from './generatedResult';
+import { generatedResultSchema, truncateLists, type GeneratedResult } from './generatedResult';
 import type { RateLimiter } from './rateLimit';
 
 export interface HandlerConfig {
@@ -88,7 +88,7 @@ function parseGeneratedResult(text: string): GeneratedResult | null {
   } catch {
     return null;
   }
-  const parsed = generatedResultSchema.safeParse(raw);
+  const parsed = generatedResultSchema.safeParse(truncateLists(raw));
   return parsed.success ? parsed.data : null;
 }
 

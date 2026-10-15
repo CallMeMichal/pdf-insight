@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resultSchema, type Result } from '@pdf-insight/shared';
+import { MAX_AMOUNTS, MAX_DATE_MENTIONS, resultSchema, type Result } from '@pdf-insight/shared';
 import { handleRequest, type HandlerConfig } from './handler';
 import type { ModelAdapter, ModelResponse } from './model';
 import type { RateLimitDecision, RateLimiter } from './rateLimit';
@@ -113,6 +113,32 @@ describe('POST /analyze', () => {
       expect(resultSchema.safeParse(await response.json()).success).toBe(true);
     },
   );
+
+  it('przycina nadmiarowe Kwoty i Wzmianki o dacie do limitu zamiast ponawiać Próbę', async () => {
+    // Schemat dla Gemini nie ma maxItems tych list (Gemini odrzuca duże maxItems), więc
+    // model może zwrócić ich więcej — Worker zostawia pierwsze, bez kosztownej ponownej Próby.
+    const output = generatedResult();
+    const model = fakeModel(
+      ok({
+        ...output,
+        amounts: Array.from({ length: 70 }, (_, i) => ({
+          value: i,
+          currency: 'PLN',
+          context: `k${i}`,
+        })),
+        dates: Array.from({ length: 50 }, (_, i) => ({ date: '2026', context: `d${i}` })),
+      }),
+    );
+
+    const response = await handleRequest(analyzeRequest(validBody), configWith(model));
+
+    expect(response.status).toBe(200);
+    expect(model.calls).toHaveLength(1);
+    const result = (await response.json()) as Result;
+    expect(result.amounts).toHaveLength(MAX_AMOUNTS);
+    expect(result.amounts[0]?.context).toBe('k0');
+    expect(result.dates).toHaveLength(MAX_DATE_MENTIONS);
+  });
 
   it('po dwóch złych odpowiedziach zwraca 502 INVALID_RESULT bez trzeciej próby', async () => {
     const bad: ModelResponse = { ok: true, text: 'to nie jest JSON' };
