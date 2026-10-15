@@ -4,7 +4,9 @@ import type { AnalyzeRequest, Result } from '@pdf-insight/shared';
 import { analyze } from './api/analyze';
 import { AnalysisProgress } from './components/AnalysisProgress';
 import { Dropzone } from './components/Dropzone';
+import { HistoryList } from './components/HistoryList';
 import { ResultView } from './components/ResultView';
+import { createHistoryStore, type HistoryEntry } from './lib/history';
 import { errorMessage, type ErrorMessage } from './lib/messages';
 import { pickPdf, PdfReadError } from './lib/pdfCheck';
 
@@ -16,9 +18,14 @@ type ScreenState =
   /** `request` jest zachowany, gdy tekst został już odczytany — wtedy można ponowić Analizę. */
   | { status: 'error'; message: ErrorMessage; request: AnalyzeRequest | null };
 
+const historyStore = createHistoryStore(() => window.localStorage);
+
 export function App() {
   const [state, setState] = useState<ScreenState>({ status: 'empty' });
+  const [historyEntries, setHistoryEntries] = useState(historyStore.list);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const resultHeadingRef = useRef<HTMLHeadingElement>(null);
+  const historyHeadingRef = useRef<HTMLHeadingElement>(null);
 
   // Plik upuszczony poza polem wyboru Dokumentu (albo w trakcie Analizy) otworzyłby się w karcie
   // przeglądarki, a bieżąca Analiza by przepadła.
@@ -35,7 +42,9 @@ export function App() {
   async function runAnalysis(request: AnalyzeRequest) {
     setState({ status: 'analyzing', request });
     try {
-      setState({ status: 'result', result: await analyze(request) });
+      const result = await analyze(request);
+      setHistoryEntries(historyStore.add(result));
+      setState({ status: 'result', result });
     } catch (error) {
       setState({ status: 'error', message: errorMessage(error), request });
     }
@@ -75,8 +84,33 @@ export function App() {
     fileInputRef.current?.focus();
   }
 
+  function openHistoryEntry(entry: HistoryEntry) {
+    // Lista Historii jest pod Wynikiem, więc fokus (i przewinięcie) wraca na jego tytuł.
+    flushSync(() => setState({ status: 'result', result: entry.result }));
+    resultHeadingRef.current?.focus();
+  }
+
+  /** Po zniknięciu listy Historii fokus trafia na główny element bieżącego ekranu. */
+  function updateHistory(entries: HistoryEntry[]) {
+    flushSync(() => setHistoryEntries(entries));
+    const target =
+      entries.length > 0
+        ? historyHeadingRef.current
+        : state.status === 'result'
+          ? resultHeadingRef.current
+          : fileInputRef.current;
+    target?.focus();
+  }
+
+  function clearHistory() {
+    if (!window.confirm('Usunąć wszystkie wyniki z historii? Tego nie da się cofnąć.')) return;
+    updateHistory(historyStore.clear());
+  }
+
   const showDropzone = state.status === 'empty' || state.status === 'error';
   const retryRequest = state.status === 'error' && state.message.retryable ? state.request : null;
+  // W trakcie Analizy Historia jest ukryta — otwarcie wpisu przerwałoby bieżącą Analizę.
+  const showHistory = historyEntries.length > 0 && (showDropzone || state.status === 'result');
 
   return (
     <main>
@@ -117,8 +151,18 @@ export function App() {
               Analizuj kolejny plik
             </button>
           </div>
-          <ResultView result={state.result} />
+          <ResultView result={state.result} headingRef={resultHeadingRef} />
         </>
+      )}
+
+      {showHistory && (
+        <HistoryList
+          entries={historyEntries}
+          headingRef={historyHeadingRef}
+          onOpen={openHistoryEntry}
+          onRemove={(id) => updateHistory(historyStore.remove(id))}
+          onClear={clearHistory}
+        />
       )}
     </main>
   );

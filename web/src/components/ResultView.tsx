@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import type { Result } from '@pdf-insight/shared';
 import {
   DOCUMENT_TYPE_LABELS,
@@ -12,17 +12,21 @@ import { ResultExport } from './ResultExport';
 
 interface ResultViewProps {
   result: Result;
+  /** Tytuł Wyniku — rodzic przenosi na niego fokus po otwarciu wpisu z Historii. */
+  headingRef?: Ref<HTMLHeadingElement>;
 }
 
 /** Czytelny widok Wyniku. Wartości z modelu są renderowane wyłącznie jako tekst. */
-export function ResultView({ result }: ResultViewProps) {
+export function ResultView({ result, headingRef }: ResultViewProps) {
   const { document, entities, meta } = result;
 
   return (
     <article className="result" aria-labelledby="result-title">
       <header className="result-header">
         <p className="result-type">{DOCUMENT_TYPE_LABELS[document.type]}</p>
-        <h2 id="result-title">{document.title ?? document.fileName}</h2>
+        <h2 id="result-title" ref={headingRef} tabIndex={-1}>
+          {document.title ?? document.fileName}
+        </h2>
         <ul className="result-facts" aria-label="Dane dokumentu">
           {document.title === null && <li>Bez tytułu</li>}
           <li>{document.date === null ? 'Bez daty' : formatPartialDate(document.date)}</li>
