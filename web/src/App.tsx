@@ -90,8 +90,11 @@ export function App() {
     resultHeadingRef.current?.focus();
   }
 
-  /** Po zniknięciu listy Historii fokus trafia na główny element bieżącego ekranu. */
-  function updateHistory(entries: HistoryEntry[]) {
+  /**
+   * Pokazuje Historię po usunięciu wpisów. Usunięty przycisk zabrałby fokus, więc trafia on na
+   * nagłówek Historii, a gdy lista zniknęła — na główny element bieżącego ekranu.
+   */
+  function showHistoryAfterRemoval(entries: HistoryEntry[]) {
     flushSync(() => setHistoryEntries(entries));
     const target =
       entries.length > 0
@@ -104,7 +107,7 @@ export function App() {
 
   function clearHistory() {
     if (!window.confirm('Usunąć wszystkie wyniki z historii? Tego nie da się cofnąć.')) return;
-    updateHistory(historyStore.clear());
+    showHistoryAfterRemoval(historyStore.clear());
   }
 
   const showDropzone = state.status === 'empty' || state.status === 'error';
@@ -160,7 +163,7 @@ export function App() {
           entries={historyEntries}
           headingRef={historyHeadingRef}
           onOpen={openHistoryEntry}
-          onRemove={(id) => updateHistory(historyStore.remove(id))}
+          onRemove={(id) => showHistoryAfterRemoval(historyStore.remove(id))}
           onClear={clearHistory}
         />
       )}

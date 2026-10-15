@@ -176,4 +176,18 @@ describe('createHistoryStore — zablokowany storage', () => {
 
     expect(createHistoryStore(() => storage).list()).toEqual([]);
   });
+
+  it('gdy odczyt się nie udaje, nowy Wynik nie nadpisuje zapisanej Historii', () => {
+    const storage = memoryStorage();
+    const history = createHistoryStore(() => storage);
+    history.add(result('stary.pdf'));
+    const readable = storage.getItem;
+    storage.getItem = () => {
+      throw new DOMException('Access denied', 'SecurityError');
+    };
+
+    history.add(result('nowy.pdf'));
+    storage.getItem = readable;
+    expect(fileNames(history.list())).toEqual(['stary.pdf']);
+  });
 });

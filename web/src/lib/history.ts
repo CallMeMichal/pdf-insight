@@ -42,32 +42,40 @@ function parseEntries(raw: string | null): HistoryEntry[] {
  * Każda operacja zwraca listę wpisów, która faktycznie jest zapisana, od najnowszego.
  */
 export function createHistoryStore(getStorage: () => HistoryStorage) {
+  function read(storage: HistoryStorage): HistoryEntry[] {
+    return parseEntries(storage.getItem(STORAGE_KEY));
+  }
+
   function list(): HistoryEntry[] {
     try {
-      return parseEntries(getStorage().getItem(STORAGE_KEY));
+      return read(getStorage());
     } catch {
       return [];
     }
   }
 
-  /** Nowa lista powstaje wewnątrz `try`, bo `crypto.randomUUID` nie istnieje poza HTTPS. */
-  function save(nextEntries: () => HistoryEntry[]): HistoryEntry[] {
+  /**
+   * Zmienia zapisaną listę. Nieudany odczyt przerywa zmianę, żeby nie nadpisać Historii, której
+   * nie widać. `crypto.randomUUID` też jest w `try`, bo poza bezpiecznym kontekstem go nie ma.
+   */
+  function save(change: (entries: HistoryEntry[]) => HistoryEntry[]): HistoryEntry[] {
     try {
-      getStorage().setItem(STORAGE_KEY, JSON.stringify(nextEntries()));
+      const storage = getStorage();
+      storage.setItem(STORAGE_KEY, JSON.stringify(change(read(storage))));
     } catch {
-      // Zapis się nie udał — zostaje to, co było zapisane wcześniej.
+      // Zmiana się nie udała — zostaje to, co było zapisane wcześniej.
     }
     return list();
   }
 
   function add(result: Result): HistoryEntry[] {
-    return save(() =>
-      [{ id: crypto.randomUUID(), result }, ...list()].slice(0, MAX_HISTORY_ENTRIES),
+    return save((entries) =>
+      [{ id: crypto.randomUUID(), result }, ...entries].slice(0, MAX_HISTORY_ENTRIES),
     );
   }
 
   function remove(id: string): HistoryEntry[] {
-    return save(() => list().filter((entry) => entry.id !== id));
+    return save((entries) => entries.filter((entry) => entry.id !== id));
   }
 
   function clear(): HistoryEntry[] {
