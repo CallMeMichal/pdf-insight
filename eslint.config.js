@@ -15,6 +15,11 @@ export default tseslint.config(
     },
   },
   {
+    // Worker loguje błędy dostawcy AI do logów Cloudflare (diagnoza), nigdy treści Dokumentu.
+    files: ['worker/**/*.ts'],
+    rules: { 'no-console': ['error', { allow: ['error'] }] },
+  },
+  {
     files: ['web/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },

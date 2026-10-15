@@ -1,9 +1,16 @@
-import { resultSchema, type AnalyzeErrorCode, type AnalyzeRequest } from '@pdf-insight/shared';
+import {
+  SCHEMA_VERSION,
+  type AnalyzeErrorCode,
+  type AnalyzeRequest,
+  type Result,
+} from '@pdf-insight/shared';
 import { corsHeaders, isOriginAllowed } from './cors';
-import { stubResult } from './stubResult';
+import type { ModelAdapter } from './model';
+import { generatedResultSchema, type GeneratedResult } from './generatedResult';
 
 export interface HandlerConfig {
   allowedOrigins: string[];
+  model: ModelAdapter;
 }
 
 function json(body: unknown, status: number, headers: Record<string, string> = {}): Response {
@@ -23,6 +30,62 @@ function parseAnalyzeRequest(body: unknown): AnalyzeRequest | null {
   if (typeof text !== 'string' || typeof fileName !== 'string') return null;
   if (typeof pages !== 'number' || !Number.isInteger(pages) || pages < 1) return null;
   return { text, fileName, pages };
+}
+
+function parseGeneratedResult(text: string): GeneratedResult | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const parsed = generatedResultSchema.safeParse(raw);
+  return parsed.success ? parsed.data : null;
+}
+
+/** Automatyczna ponowna Próba po niepoprawnej odpowiedzi modelu — łącznie dwie Próby. */
+const MAX_ATTEMPTS = 2;
+
+/**
+ * Łączny czas na wszystkie Próby jednej Analizy. Użytkownik ma dostać Wynik w mniej niż 30 s,
+ * a część tego czasu zajmuje odczyt PDF-a i sieć po stronie przeglądarki. Druga Próba dostaje
+ * tylko resztę tego czasu: gdy pierwsza zużyje go prawie cały, druga zostanie przerwana
+ * (`AI_PROVIDER_ERROR`) — limit 30 s ma pierwszeństwo przed ponowieniem.
+ */
+const ANALYSIS_TIMEOUT_MS = 25_000;
+
+/**
+ * Odpytuje model, aż zwróci poprawną odpowiedź, najwyżej `MAX_ATTEMPTS` razy.
+ * Ponawiana jest tylko niepoprawna odpowiedź; błąd dostawcy kończy Analizę od razu.
+ */
+async function runAttempts(
+  documentText: string,
+  model: ModelAdapter,
+): Promise<{ ok: true; generated: GeneratedResult } | { ok: false; error: AnalyzeErrorCode }> {
+  const signal = AbortSignal.timeout(ANALYSIS_TIMEOUT_MS);
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const response = await model.generate(documentText, signal);
+    if (!response.ok) {
+      console.error(`Próba ${attempt}: błąd dostawcy AI ${response.error}`);
+      return { ok: false, error: 'AI_PROVIDER_ERROR' };
+    }
+    const generated = parseGeneratedResult(response.text);
+    if (generated) return { ok: true, generated };
+  }
+  return { ok: false, error: 'INVALID_RESULT' };
+}
+
+/** Nazwa pliku i liczba stron pochodzą z żądania (z pliku), nigdy od modelu. */
+function toResult(generated: GeneratedResult, request: AnalyzeRequest, modelName: string): Result {
+  return {
+    ...generated,
+    document: { ...generated.document, fileName: request.fileName, pages: request.pages },
+    meta: {
+      analyzedAt: new Date().toISOString(),
+      model: modelName,
+      schemaVersion: SCHEMA_VERSION,
+    },
+  };
 }
 
 export async function handleRequest(request: Request, config: HandlerConfig): Promise<Response> {
@@ -50,8 +113,8 @@ export async function handleRequest(request: Request, config: HandlerConfig): Pr
   if (!analyzeRequest) return error('INVALID_INPUT', 400, cors);
 
   // Niepoprawny Wynik nigdy nie opuszcza Workera.
-  const parsed = resultSchema.safeParse(stubResult(analyzeRequest));
-  if (!parsed.success) return error('INVALID_RESULT', 502, cors);
+  const attempts = await runAttempts(analyzeRequest.text, config.model);
+  if (!attempts.ok) return error(attempts.error, 502, cors);
 
-  return json(parsed.data, 200, cors);
+  return json(toResult(attempts.generated, analyzeRequest, config.model.modelName), 200, cors);
 }

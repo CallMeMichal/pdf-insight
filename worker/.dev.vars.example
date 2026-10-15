@@ -1,2 +1,4 @@
 # Skopiuj do worker/.dev.vars (plik ignorowany przez git). Prawdziwe sekrety nigdy do repo.
 ALLOWED_ORIGINS=https://callmemichal.github.io,http://localhost:*
+# Klucz z Google AI Studio (https://aistudio.google.com/apikey).
+GEMINI_API_KEY=

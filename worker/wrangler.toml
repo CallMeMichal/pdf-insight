@@ -6,3 +6,5 @@ compatibility_date = "2026-10-01"
 # Lista originów oddzielonych przecinkami; `*` w miejscu portu dopuszcza dowolny port.
 # Lokalnie nadpisywane w .dev.vars (np. o http://localhost:*).
 ALLOWED_ORIGINS = "https://callmemichal.github.io"
+# Model Gemini Flash (darmowy tier). Klucz API to sekret: `npx wrangler secret put GEMINI_API_KEY`.
+GEMINI_MODEL = "gemini-3.8-flash"
