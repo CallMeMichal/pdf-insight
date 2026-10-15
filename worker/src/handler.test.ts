@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { resultSchema, type Result } from '@pdf-insight/shared';
 import { handleRequest, type HandlerConfig } from './handler';
 import type { ModelAdapter, ModelResponse } from './model';
+import type { RateLimitDecision, RateLimiter } from './rateLimit';
 
 const DEMO_ORIGIN = 'https://callmemichal.github.io';
 const MODEL_NAME = 'gemini-test-flash';
@@ -41,8 +42,22 @@ function fakeModel(...responses: ModelResponse[]): ModelAdapter & { calls: strin
   };
 }
 
-function configWith(model: ModelAdapter): HandlerConfig {
-  return { allowedOrigins: [DEMO_ORIGIN, 'http://localhost:*'], model };
+/** Fake limitera: zwraca zadaną decyzję i zapamiętuje, dla jakich adresów IP go wołano. */
+function fakeRateLimiter(decision: RateLimitDecision = { ok: true }): RateLimiter & {
+  calls: string[];
+} {
+  const calls: string[] = [];
+  return {
+    calls,
+    check(clientIp) {
+      calls.push(clientIp);
+      return Promise.resolve(decision);
+    },
+  };
+}
+
+function configWith(model: ModelAdapter, rateLimiter = fakeRateLimiter()): HandlerConfig {
+  return { allowedOrigins: [DEMO_ORIGIN, 'http://localhost:*'], model, rateLimiter };
 }
 
 /** Konfiguracja dla testów, w których model zawsze odpowiada poprawnie. */
@@ -51,10 +66,12 @@ const config = configWith({
   generate: () => Promise.resolve(ok(generatedResult())),
 });
 
+const CLIENT_IP = '203.0.113.7';
+
 function analyzeRequest(body: unknown, origin = DEMO_ORIGIN): Request {
   return new Request('https://worker.example/analyze', {
     method: 'POST',
-    headers: { Origin: origin, 'Content-Type': 'application/json' },
+    headers: { Origin: origin, 'Content-Type': 'application/json', 'CF-Connecting-IP': CLIENT_IP },
     body: JSON.stringify(body),
   });
 }
@@ -119,6 +136,17 @@ describe('POST /analyze', () => {
     expect(model.calls).toHaveLength(1);
   });
 
+  it('przy wyczerpanym limicie dostawcy AI zwraca 503 AI_QUOTA_EXCEEDED bez ponawiania', async () => {
+    const model = fakeModel({ ok: false, error: 'RATE_LIMITED' });
+
+    const response = await handleRequest(analyzeRequest(validBody), configWith(model));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({ error: 'AI_QUOTA_EXCEEDED' });
+    expect(model.calls).toHaveLength(1);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(DEMO_ORIGIN);
+  });
+
   it('zwraca Wynik zgodny ze schematem', async () => {
     const response = await handleRequest(analyzeRequest(validBody), config);
 
@@ -140,6 +168,18 @@ describe('POST /analyze', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:5173');
+  });
+
+  it('odrzuca localhost 403, gdy konfiguracja (produkcyjna) go nie dopuszcza', async () => {
+    const productionConfig = { ...config, allowedOrigins: [DEMO_ORIGIN] };
+
+    const response = await handleRequest(
+      analyzeRequest(validBody, 'http://localhost:5173'),
+      productionConfig,
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: 'ORIGIN_NOT_ALLOWED' });
   });
 
   it('zwraca 403 dla niedozwolonego originu', async () => {
@@ -177,6 +217,111 @@ describe('POST /analyze', () => {
     const response = await handleRequest(analyzeRequest({ text: 'x' }), config);
 
     expect(response.status).toBe(400);
+  });
+
+  it('zwraca 400 EMPTY_TEXT dla tekstu pustego po przycięciu, bez wywołania modelu', async () => {
+    const model = fakeModel();
+
+    const response = await handleRequest(
+      analyzeRequest({ ...validBody, text: ' \n\t ' }),
+      configWith(model),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: 'EMPTY_TEXT' });
+    expect(model.calls).toHaveLength(0);
+  });
+
+  it('przyjmuje tekst o długości dokładnie 500 000 znaków', async () => {
+    const response = await handleRequest(
+      analyzeRequest({ ...validBody, text: 'a'.repeat(500_000) }),
+      config,
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  it('zwraca 413 TEXT_TOO_LONG dla tekstu dłuższego niż 500 000 znaków, bez wywołania modelu', async () => {
+    const model = fakeModel();
+
+    const response = await handleRequest(
+      analyzeRequest({ ...validBody, text: 'a'.repeat(500_001) }),
+      configWith(model),
+    );
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: 'TEXT_TOO_LONG' });
+    expect(model.calls).toHaveLength(0);
+  });
+
+  it('przyjmuje maksymalny tekst złożony z samych znaków ucieczki JSON', async () => {
+    // Każdy znak sterujący to w JSON-ie 6 bajtów (\u0001) — najgorszy przypadek rozmiaru ciała.
+    const text = 'a' + '\u0001'.repeat(499_999);
+
+    const response = await handleRequest(analyzeRequest({ ...validBody, text }), config);
+
+    expect(response.status).toBe(200);
+  });
+
+  it('zwraca 413 PAYLOAD_TOO_LARGE dla ciała większego niż dopuszczalne, bez wywołania modelu', async () => {
+    const model = fakeModel();
+    const body = { ...validBody, fileName: 'a'.repeat(4 * 1024 * 1024) };
+
+    const response = await handleRequest(analyzeRequest(body), configWith(model));
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: 'PAYLOAD_TOO_LARGE' });
+    expect(model.calls).toHaveLength(0);
+  });
+});
+
+describe('limit Analiz na adres IP', () => {
+  it('zwraca 429 RATE_LIMITED z Retry-After, bez wywołania modelu', async () => {
+    const model = fakeModel();
+    const rateLimiter = fakeRateLimiter({ ok: false, retryAfterSeconds: 42 });
+
+    const response = await handleRequest(analyzeRequest(validBody), configWith(model, rateLimiter));
+
+    expect(response.status).toBe(429);
+    expect(await response.json()).toEqual({ error: 'RATE_LIMITED' });
+    expect(response.headers.get('Retry-After')).toBe('42');
+    expect(model.calls).toHaveLength(0);
+    expect(rateLimiter.calls).toEqual([CLIENT_IP]);
+  });
+
+  it('udostępnia przeglądarce nagłówek Retry-After przez CORS', async () => {
+    const rateLimiter = fakeRateLimiter({ ok: false, retryAfterSeconds: 42 });
+
+    const response = await handleRequest(
+      analyzeRequest(validBody),
+      configWith(fakeModel(), rateLimiter),
+    );
+
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(DEMO_ORIGIN);
+    expect(response.headers.get('Access-Control-Expose-Headers')).toContain('Retry-After');
+  });
+
+  it('liczy Analizę z adresu IP klienta, gdy limit nie jest przekroczony', async () => {
+    const rateLimiter = fakeRateLimiter();
+
+    const response = await handleRequest(
+      analyzeRequest(validBody),
+      configWith(fakeModel(ok(generatedResult())), rateLimiter),
+    );
+
+    expect(response.status).toBe(200);
+    expect(rateLimiter.calls).toEqual([CLIENT_IP]);
+  });
+
+  it('nie zużywa limitu na żądanie odrzucone walidacją', async () => {
+    const rateLimiter = fakeRateLimiter();
+
+    await handleRequest(
+      analyzeRequest({ ...validBody, text: '  ' }),
+      configWith(fakeModel(), rateLimiter),
+    );
+
+    expect(rateLimiter.calls).toHaveLength(0);
   });
 });
 

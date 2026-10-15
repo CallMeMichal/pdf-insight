@@ -1,4 +1,5 @@
 import {
+  MAX_TEXT_LENGTH,
   SCHEMA_VERSION,
   type AnalyzeErrorCode,
   type AnalyzeRequest,
@@ -7,10 +8,12 @@ import {
 import { corsHeaders, isOriginAllowed } from './cors';
 import type { ModelAdapter } from './model';
 import { generatedResultSchema, type GeneratedResult } from './generatedResult';
+import type { RateLimiter } from './rateLimit';
 
 export interface HandlerConfig {
   allowedOrigins: string[];
   model: ModelAdapter;
+  rateLimiter: RateLimiter;
 }
 
 function json(body: unknown, status: number, headers: Record<string, string> = {}): Response {
@@ -20,8 +23,53 @@ function json(body: unknown, status: number, headers: Record<string, string> = {
   });
 }
 
-function error(code: AnalyzeErrorCode, status: number, headers?: Record<string, string>): Response {
-  return json({ error: code }, status, headers);
+/** Status HTTP wynika z kodu błędu (kontrakt API w specyfikacji). */
+const ERROR_STATUS: Record<AnalyzeErrorCode, number> = {
+  INVALID_INPUT: 400,
+  EMPTY_TEXT: 400,
+  ORIGIN_NOT_ALLOWED: 403,
+  NOT_FOUND: 404,
+  METHOD_NOT_ALLOWED: 405,
+  TEXT_TOO_LONG: 413,
+  PAYLOAD_TOO_LARGE: 413,
+  RATE_LIMITED: 429,
+  INVALID_RESULT: 502,
+  AI_PROVIDER_ERROR: 502,
+  // Wyczerpany limit dostawcy AI to stan przejściowy, a nie błąd dostawcy — stąd 503.
+  AI_QUOTA_EXCEEDED: 503,
+};
+
+function error(code: AnalyzeErrorCode, headers?: Record<string, string>): Response {
+  return json({ error: code }, ERROR_STATUS[code], headers);
+}
+
+/**
+ * Największe dopuszczalne ciało żądania. Tekst o długości `MAX_TEXT_LENGTH` w najgorszym
+ * przypadku zajmuje w JSON-ie 6 bajtów na znak (`\u0001`), do tego zapas na pozostałe pola.
+ */
+const MAX_BODY_BYTES = 6 * MAX_TEXT_LENGTH + 64 * 1024;
+
+/**
+ * Czyta ciało strumieniowo i przerywa po przekroczeniu `maxBytes`, zamiast buforować dowolnie
+ * duże żądanie. Zwraca `null`, gdy ciało jest za duże.
+ */
+async function readBody(request: Request, maxBytes: number): Promise<string | null> {
+  if (!request.body) return '';
+  const reader = request.body.getReader();
+  const decoder = new TextDecoder();
+  let size = 0;
+  let text = '';
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    size += value.byteLength;
+    if (size > maxBytes) {
+      await reader.cancel();
+      return null;
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
 }
 
 function parseAnalyzeRequest(body: unknown): AnalyzeRequest | null {
@@ -54,20 +102,23 @@ const MAX_ATTEMPTS = 2;
  */
 const ANALYSIS_TIMEOUT_MS = 25_000;
 
+type AttemptsOutcome =
+  { ok: true; generated: GeneratedResult } | { ok: false; error: AnalyzeErrorCode };
+
 /**
  * Odpytuje model, aż zwróci poprawną odpowiedź, najwyżej `MAX_ATTEMPTS` razy.
  * Ponawiana jest tylko niepoprawna odpowiedź; błąd dostawcy kończy Analizę od razu.
  */
-async function runAttempts(
-  documentText: string,
-  model: ModelAdapter,
-): Promise<{ ok: true; generated: GeneratedResult } | { ok: false; error: AnalyzeErrorCode }> {
+async function runAttempts(documentText: string, model: ModelAdapter): Promise<AttemptsOutcome> {
   const signal = AbortSignal.timeout(ANALYSIS_TIMEOUT_MS);
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     const response = await model.generate(documentText, signal);
     if (!response.ok) {
       console.error(`Próba ${attempt}: błąd dostawcy AI ${response.error}`);
-      return { ok: false, error: 'AI_PROVIDER_ERROR' };
+      return {
+        ok: false,
+        error: response.error === 'RATE_LIMITED' ? 'AI_QUOTA_EXCEEDED' : 'AI_PROVIDER_ERROR',
+      };
     }
     const generated = parseGeneratedResult(response.text);
     if (generated) return { ok: true, generated };
@@ -90,31 +141,46 @@ function toResult(generated: GeneratedResult, request: AnalyzeRequest, modelName
 
 export async function handleRequest(request: Request, config: HandlerConfig): Promise<Response> {
   const url = new URL(request.url);
-  if (url.pathname !== '/analyze') return error('NOT_FOUND', 404);
+  if (url.pathname !== '/analyze') return error('NOT_FOUND');
 
   const origin = request.headers.get('Origin');
   if (!origin || !isOriginAllowed(origin, config.allowedOrigins)) {
-    return error('ORIGIN_NOT_ALLOWED', 403);
+    return error('ORIGIN_NOT_ALLOWED');
   }
   const cors = corsHeaders(origin);
 
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   if (request.method !== 'POST') {
-    return error('METHOD_NOT_ALLOWED', 405, { ...cors, Allow: 'POST, OPTIONS' });
+    return error('METHOD_NOT_ALLOWED', { ...cors, Allow: 'POST, OPTIONS' });
   }
 
+  const rawBody = await readBody(request, MAX_BODY_BYTES);
+  if (rawBody === null) return error('PAYLOAD_TOO_LARGE', cors);
   let body: unknown;
   try {
-    body = await request.json();
+    body = JSON.parse(rawBody);
   } catch {
-    return error('INVALID_INPUT', 400, cors);
+    return error('INVALID_INPUT', cors);
   }
   const analyzeRequest = parseAnalyzeRequest(body);
-  if (!analyzeRequest) return error('INVALID_INPUT', 400, cors);
+  if (!analyzeRequest) return error('INVALID_INPUT', cors);
+  if (!analyzeRequest.text.trim()) return error('EMPTY_TEXT', cors);
+  if (analyzeRequest.text.length > MAX_TEXT_LENGTH) return error('TEXT_TOO_LONG', cors);
+
+  // Limit liczy tylko żądania, które przeszły walidację, czyli faktyczne Analizy.
+  // Cloudflare zawsze ustawia CF-Connecting-IP; brak nagłówka trafia do wspólnego licznika.
+  const clientIp = request.headers.get('CF-Connecting-IP') ?? 'unknown';
+  const decision = await config.rateLimiter.check(clientIp);
+  if (!decision.ok) {
+    return error('RATE_LIMITED', {
+      ...cors,
+      'Retry-After': String(decision.retryAfterSeconds),
+    });
+  }
 
   // Niepoprawny Wynik nigdy nie opuszcza Workera.
   const attempts = await runAttempts(analyzeRequest.text, config.model);
-  if (!attempts.ok) return error(attempts.error, 502, cors);
+  if (!attempts.ok) return error(attempts.error, cors);
 
   return json(toResult(attempts.generated, analyzeRequest, config.model.modelName), 200, cors);
 }
