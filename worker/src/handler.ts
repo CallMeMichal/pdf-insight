@@ -1,4 +1,6 @@
 import {
+  MAX_AMOUNTS,
+  MAX_DATE_MENTIONS,
   MAX_TEXT_LENGTH,
   SCHEMA_VERSION,
   type AnalyzeErrorCode,
@@ -7,7 +9,7 @@ import {
 } from '@pdf-insight/shared';
 import { corsHeaders, isOriginAllowed } from './cors';
 import type { ModelAdapter } from './model';
-import { generatedResultSchema, truncateLists, type GeneratedResult } from './generatedResult';
+import { generatedResultSchema, type GeneratedResult } from './generatedResult';
 import type { RateLimiter } from './rateLimit';
 
 export interface HandlerConfig {
@@ -85,7 +87,7 @@ function parseGeneratedResult(text: string): GeneratedResult | null {
   } catch {
     return null;
   }
-  const parsed = generatedResultSchema.safeParse(truncateLists(raw));
+  const parsed = generatedResultSchema.safeParse(raw);
   return parsed.success ? parsed.data : null;
 }
 
@@ -124,10 +126,16 @@ async function runAttempts(documentText: string, model: ModelAdapter): Promise<A
   return { ok: false, error: 'INVALID_RESULT' };
 }
 
-/** Nazwa pliku i liczba stron pochodzą z żądania (z pliku), nigdy od modelu. */
+/**
+ * Nazwa pliku i liczba stron pochodzą z żądania (z pliku), nigdy od modelu. Nadmiar Kwot i dat
+ * jest przycinany, a nie ponawiany (Próba podwoiłaby czas) — prompt każe podać najważniejsze
+ * najpierw.
+ */
 function toResult(generated: GeneratedResult, request: AnalyzeRequest, modelName: string): Result {
   return {
     ...generated,
+    amounts: generated.amounts.slice(0, MAX_AMOUNTS),
+    dates: generated.dates.slice(0, MAX_DATE_MENTIONS),
     document: { ...generated.document, fileName: request.fileName, pages: request.pages },
     meta: {
       analyzedAt: new Date().toISOString(),

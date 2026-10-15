@@ -115,8 +115,8 @@ describe('POST /analyze', () => {
   );
 
   it('przycina nadmiarowe Kwoty i Wzmianki o dacie do limitu zamiast ponawiać Próbę', async () => {
-    // Schemat dla Gemini nie ma maxItems tych list (Gemini odrzuca duże maxItems), więc
-    // model może zwrócić ich więcej — Worker zostawia pierwsze, bez kosztownej ponownej Próby.
+    // Schemat nie ma maxItems tych list (Gemini odrzuca duże maxItems), więc model może
+    // zwrócić ich więcej — Worker zostawia pierwsze, bez kosztownej ponownej Próby.
     const output = generatedResult();
     const model = fakeModel(
       ok({

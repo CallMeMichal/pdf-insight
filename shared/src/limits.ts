@@ -18,7 +18,7 @@ export const MAX_KEYWORDS = 10;
 /**
  * Maksymalna liczba Kwot i Wzmianek o dacie w Wyniku. Czas Analizy zależy głównie od długości
  * odpowiedzi modelu (~500 tokenów/s), więc bez limitu dokument z setkami kwot nie mieści się
- * w 30 s. Przy nadmiarze model wybiera najważniejsze.
+ * w 30 s. Prompt każe podać najważniejsze najpierw, a nadmiar przycina Worker.
  */
 export const MAX_AMOUNTS = 60;
 export const MAX_DATE_MENTIONS = 40;

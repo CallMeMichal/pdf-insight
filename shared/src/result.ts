@@ -1,12 +1,6 @@
 import { z } from 'zod';
 import { ISO_4217_CODES } from './currencies';
-import {
-  MAX_AMOUNTS,
-  MAX_DATE_MENTIONS,
-  MAX_KEY_POINTS,
-  MAX_KEYWORDS,
-  MIN_KEY_POINTS,
-} from './limits';
+import { MAX_KEY_POINTS, MAX_KEYWORDS, MIN_KEY_POINTS } from './limits';
 
 export const documentTypeSchema = z.enum(['faktura', 'umowa', 'oferta', 'raport', 'inne']);
 
@@ -62,8 +56,9 @@ export const resultSchema = z.object({
     organizations: z.array(z.string()),
     people: z.array(z.string()),
   }),
-  amounts: z.array(amountSchema).max(MAX_AMOUNTS),
-  dates: z.array(dateMentionSchema).max(MAX_DATE_MENTIONS),
+  /** Bez `.max()`: Gemini odrzuca duże `maxItems`, więc nadmiar przycina Worker. */
+  amounts: z.array(amountSchema),
+  dates: z.array(dateMentionSchema),
   keywords: z.array(z.string()).max(MAX_KEYWORDS),
   meta: z.object({
     analyzedAt: z.iso.datetime({ offset: true }),

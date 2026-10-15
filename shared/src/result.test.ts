@@ -171,25 +171,6 @@ describe('resultSchema — niepoprawne Wyniki', () => {
     });
   });
 
-  it('odrzuca więcej niż 60 Kwot', () => {
-    expectInvalid((result) => {
-      result.amounts = Array.from({ length: 61 }, (_, i) => ({
-        value: i,
-        currency: 'PLN',
-        context: `kwota ${i + 1}`,
-      }));
-    });
-  });
-
-  it('odrzuca więcej niż 40 Wzmianek o dacie', () => {
-    expectInvalid((result) => {
-      result.dates = Array.from({ length: 41 }, (_, i) => ({
-        date: '2026',
-        context: `data ${i + 1}`,
-      }));
-    });
-  });
-
   it.each([0, -1, 1.5])('odrzuca liczbę stron %d', (pages) => {
     expectInvalid((result) => {
       result.document.pages = pages;

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import type { ModelAdapter, ModelErrorCode, ModelResponse } from './model';
-import { modelResponseSchema } from './generatedResult';
+import { generatedResultSchema } from './generatedResult';
 import { buildPrompt } from './prompt';
 
 const API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
@@ -49,10 +49,9 @@ function toGeminiSchema(schema: unknown): unknown {
 
 /**
  * Schemat odpowiedzi wymuszany na modelu, wyprowadzony ze schematu Zod Wyniku (bez `meta`,
- * `fileName`, `pages` i limitu list Kwot i dat). Reguł niewyrażalnych tu (format daty, kody ISO)
- * pilnuje walidacja Zod.
+ * `fileName` i `pages`). Reguł niewyrażalnych tu (format daty, kody ISO) pilnuje walidacja Zod.
  */
-const RESPONSE_SCHEMA = toGeminiSchema(z.toJSONSchema(modelResponseSchema));
+const RESPONSE_SCHEMA = toGeminiSchema(z.toJSONSchema(generatedResultSchema));
 
 /** Powody zakończenia, przy których model odmówił odpowiedzi. */
 const BLOCKED_FINISH_REASONS = new Set([
