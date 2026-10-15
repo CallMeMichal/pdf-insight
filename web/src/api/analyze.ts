@@ -16,12 +16,20 @@ const API_URL = import.meta.env.VITE_API_URL.replace(/\/+$/, '');
 
 export class AnalyzeError extends Error {
   readonly code: ClientErrorCode;
+  /** Po ilu sekundach można spróbować ponownie (nagłówek `Retry-After` przy limicie Analiz). */
+  readonly retryAfterSeconds: number | null;
 
-  constructor(code: ClientErrorCode) {
+  constructor(code: ClientErrorCode, retryAfterSeconds: number | null = null) {
     super(`Analiza nie powiodła się: ${code}`);
     this.name = 'AnalyzeError';
     this.code = code;
+    this.retryAfterSeconds = retryAfterSeconds;
   }
+}
+
+function parseRetryAfter(response: Response): number | null {
+  const seconds = Number(response.headers.get('Retry-After'));
+  return Number.isInteger(seconds) && seconds > 0 ? seconds : null;
 }
 
 /** Wysyła tekst Dokumentu do Workera i zwraca Wynik zwalidowany schematem. */
@@ -43,7 +51,7 @@ export async function analyze(request: AnalyzeRequest): Promise<Result> {
       typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
         ? (body.error as AnalyzeErrorCode)
         : (`HTTP_${response.status}` as const);
-    throw new AnalyzeError(code);
+    throw new AnalyzeError(code, parseRetryAfter(response));
   }
 
   // Wynik niezgodny ze schematem nigdy nie trafia do widoku.

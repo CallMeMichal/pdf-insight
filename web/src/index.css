@@ -26,3 +26,15 @@ pre {
 .error {
   color: #b3261e;
 }
+
+.warning {
+  padding: 0.75rem 1rem;
+  color: #5c4300;
+  background: #fff4d6;
+  border-left: 4px solid #c78a00;
+  border-radius: 0.25rem;
+}
+
+.warning::before {
+  content: '⚠ ';
+}

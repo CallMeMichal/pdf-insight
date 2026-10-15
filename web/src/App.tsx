@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Result } from '@pdf-insight/shared';
 import { analyze } from './api/analyze';
+import { analyzeErrorMessage, type AnalyzeErrorMessage } from './api/messages';
 import { FileInput } from './components/FileInput';
 
 type ScreenState =
@@ -8,7 +9,7 @@ type ScreenState =
   | { status: 'reading' }
   | { status: 'analyzing' }
   | { status: 'result'; result: Result }
-  | { status: 'error'; message: string };
+  | { status: 'error'; message: AnalyzeErrorMessage };
 
 export function App() {
   const [state, setState] = useState<ScreenState>({ status: 'empty' });
@@ -22,15 +23,18 @@ export function App() {
       const { readPdf } = await import('./lib/pdf');
       pdf = await readPdf(file);
     } catch {
-      setState({ status: 'error', message: 'Nie udało się odczytać tekstu z tego PDF-a.' });
+      setState({
+        status: 'error',
+        message: { tone: 'error', text: 'Nie udało się odczytać tekstu z tego PDF-a.' },
+      });
       return;
     }
 
     setState({ status: 'analyzing' });
     try {
       setState({ status: 'result', result: await analyze(pdf) });
-    } catch {
-      setState({ status: 'error', message: 'Analiza nie powiodła się. Spróbuj ponownie.' });
+    } catch (error) {
+      setState({ status: 'error', message: analyzeErrorMessage(error) });
     }
   }
 
@@ -41,7 +45,11 @@ export function App() {
       <div aria-live="polite">
         {state.status === 'reading' && <p>Odczytuję tekst z PDF-a…</p>}
         {state.status === 'analyzing' && <p>Analizuję dokument…</p>}
-        {state.status === 'error' && <p className="error">{state.message}</p>}
+        {state.status === 'error' && (
+          <p className={state.message.tone} role="alert">
+            {state.message.text}
+          </p>
+        )}
       </div>
       {state.status === 'result' && <pre>{JSON.stringify(state.result, null, 2)}</pre>}
     </main>
