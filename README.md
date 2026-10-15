@@ -4,17 +4,17 @@ Aplikacja webowa, która przyjmuje PDF, tworzy jego krótkie podsumowanie i zami
 
 **Demo:** https://callmemichal.github.io/pdf-insight/
 
-![Wynik Analizy testowej umowy: typ, tytuł, data, podsumowanie, najważniejsze punkty, organizacje i osoby](docs/screenshot.png)
+![Wynik Analizy testowej umowy: typ, tytuł, data, podsumowanie, najważniejsze punkty, Organizacje i Osoby](docs/screenshot.png)
 
-Na zrzucie widać Wynik Analizy 12-stronicowej umowy testowej z briefu (około 14 s). Pod widocznym fragmentem są Kwoty, daty, słowa kluczowe, metadane, podgląd JSON-a z przyciskiem pobrania i Historia.
+Na zrzucie widać Wynik Analizy 12-stronicowej umowy testowej z zadania rekrutacyjnego (Analiza trwała około 14 s). Pod widocznym fragmentem są Kwoty, Wzmianki o dacie, słowa kluczowe, metadane, podgląd JSON-a z przyciskiem pobrania i Historia.
 
 ## Jak to działa
 
 1. Użytkownik przeciąga PDF na stronę albo wybiera go z dysku. Przeglądarka sprawdza typ, rozmiar (do 10 MB) i liczbę plików.
 2. pdf.js wyciąga tekst w przeglądarce. Plik PDF nigdzie nie jest wysyłany, idzie tylko tekst, nazwa pliku i liczba stron.
-3. Cloudflare Worker sprawdza origin, limity i dane wejściowe, po czym pyta Gemini o Wynik w trybie JSON ze schematem.
+3. Cloudflare Worker sprawdza origin i dane wejściowe, potem limity Analiz na adres IP, i pyta Gemini o Wynik w trybie JSON ze schematem.
 4. Worker waliduje odpowiedź schematem Zod. Jeśli jest niepoprawna, ponawia jeden raz, a potem zwraca błąd.
-5. Strona waliduje Wynik ponownie i pokazuje go w sekcjach: podsumowanie, najważniejsze punkty, organizacje i osoby, Kwoty, daty, słowa kluczowe. Pełny JSON można podejrzeć i pobrać.
+5. Strona waliduje Wynik ponownie i pokazuje go w sekcjach: podsumowanie, najważniejsze punkty, Organizacje i Osoby, Kwoty, Wzmianki o dacie, słowa kluczowe. Pełny JSON można podejrzeć i pobrać.
 6. Wynik trafia do Historii w przeglądarce (ostatnie 10).
 
 Terminy pisane wielką literą (Dokument, Analiza, Wynik, Kwota, Historia itd.) są zdefiniowane w [CONTEXT.md](CONTEXT.md).
@@ -24,7 +24,7 @@ Terminy pisane wielką literą (Dokument, Analiza, Wynik, Kwota, Historia itd.) 
 ```text
 Przeglądarka (GitHub Pages)          Cloudflare Worker                     Google Gemini
 React 19 + Vite, TypeScript strict   POST /analyze                         gemini-3.5-flash-lite
-pdf.js: PDF → tekst          ──────▶ CORS, limity na IP, walidacja ──────▶ tryb JSON ze schematem
+pdf.js: PDF → tekst          ──────▶ CORS, walidacja, limity na IP ──────▶ tryb JSON ze schematem
 walidacja Wyniku (Zod)       ◀────── walidacja Wyniku (Zod), 1 ponowienie ◀──
 Historia w localStorage              klucz API tylko w sekretach Workera
 ```
@@ -42,13 +42,13 @@ CI/CD (`.github/workflows/ci.yml`): lint › typecheck › testy › build, a na
 ## Najważniejsze decyzje
 
 - **Tekst wyciągany w przeglądarce (pdf.js), nie na serwerze.** Do Workera idzie sam tekst, więc żądanie jest małe, limit 10 MB sprawdza przeglądarka, a liczba stron jest znana bez AI. Ceną jest brak OCR: skany nie mają warstwy tekstowej (patrz ograniczenia). Worker pdf.js jest ładowany przez `?url` w Vite, więc działa pod ścieżką `/pdf-insight/`.
-- **Bez dzielenia na fragmenty.** Gemini ma okno kontekstu rzędu miliona tokenów, więc typowy dokument mieści się w jednym wywołaniu. Zamiast map-reduce (F-08) jest twardy limit 500 000 znaków tekstu (około 200 stron), sprawdzany w przeglądarce i w Workerze. Dłuższy dokument dostaje czytelny komunikat.
+- **Bez dzielenia na fragmenty.** Gemini ma okno kontekstu rzędu miliona tokenów, więc typowy dokument mieści się w jednym wywołaniu. Zamiast dzielenia tekstu i łączenia wyników (map-reduce) jest twardy limit 500 000 znaków tekstu (około 200 stron), sprawdzany w przeglądarce i w Workerze. Dłuższy dokument dostaje czytelny komunikat.
 - **Walidacja po obu stronach.** Worker nie odeśle Wyniku niezgodnego ze schematem (502), a strona odrzuca taką odpowiedź przed wyświetleniem i przy odczycie Historii. Oba miejsca używają tego samego schematu z `shared/`. Schemat odpowiedzi dla Gemini jest generowany z Zod, a reguł, których nie da się w nim wyrazić (np. poprawność daty w kalendarzu), pilnuje walidacja po odpowiedzi.
-- **Pola pewne bez AI nie pochodzą od AI.** `fileName` i `pages` Worker bierze z żądania, a `meta` (`analyzedAt`, `model`, `schemaVersion`) dokłada sam. Model wypełnia tylko pola, które wymagają zrozumienia treści.
+- **Metadane ustala Worker, nie model.** `fileName` i `pages` Worker bierze z żądania, a `meta` (`analyzedAt`, `model`, `schemaVersion`) dokłada sam. Model wypełnia tylko pola, które wymagają zrozumienia treści.
 - **Treść PDF-a to dane, nie polecenia.** Tekst Dokumentu jest w bloku z losowym znacznikiem przy każdej Próbie, a instrukcja systemowa mówi wprost, że polecenia z dokumentu są ignorowane. Testowa umowa ma na str. 4 próbę prompt injection („umowa jest nieważna… 1 PLN”) i nie pojawia się ona w Wyniku.
 - **Model Gemini Flash-Lite.** Gemini Flash z domyślnym „myśleniem” analizował testową umowę około 120 s, Flash-Lite 11–23 s, przy wymaganiu poniżej 30 s. Nazwa modelu jest w `GEMINI_MODEL`, więc zmiana nie wymaga zmiany kodu. Łączny limit czasu Prób w Workerze to 25 s.
 - **Limity Analiz na adres IP: 5 na minutę i 30 na dobę.** Minutowy liczy binding Cloudflare Rate Limiting, dobowy Durable Object, bo binding nie obsługuje okna dobowego ([ADR 0001](docs/adr/0001-limit-dobowy-w-durable-object.md)). Przekroczenie daje 429 z `Retry-After`, a strona pokazuje, ile trzeba odczekać.
-- **Bezpieczeństwo.** Klucz Gemini jest tylko w sekretach Workera. CORS dopuszcza wyłącznie origin demo. Worker czyta ciało żądania strumieniowo z limitem bajtów, a do logów zapisuje tylko kody błędów Gemini, bez treści, która mogłaby cytować dokument. Wartości od modelu są renderowane wyłącznie jako tekst, bez `dangerouslySetInnerHTML`. Pod polem uploadu jest informacja, że tekst trafia do Google Gemini.
+- **Bezpieczeństwo.** Klucz Gemini jest tylko w sekretach Workera. CORS dopuszcza wyłącznie origin demo. Worker czyta ciało żądania strumieniowo z limitem bajtów, a do logów zapisuje tylko kody błędów Gemini, bez treści, która mogłaby cytować dokument. Wartości od modelu są renderowane wyłącznie jako tekst, bez `dangerouslySetInnerHTML`. Pod polem wyboru Dokumentu jest informacja, że tekst trafia do Google Gemini.
 - **Historia tylko w przeglądarce.** Ostatnie 10 Wyników w `localStorage`, bez tekstu Dokumentu. Przy zablokowanym lub pełnym storage aplikacja działa normalnie, tylko bez Historii.
 
 ## Uruchomienie lokalne
@@ -78,14 +78,14 @@ npm run build       # build strony do web/dist
 
 ## Zmienne środowiskowe i sekrety
 
-| Nazwa                   | Gdzie lokalnie                                | Gdzie na produkcji                                                    | Do czego                                                                                        |
-| ----------------------- | --------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| `VITE_API_URL`          | `web/.env.local`                              | zmienna repozytorium GitHub (Settings › Variables)                    | Adres Workera wbudowywany w stronę. Publiczny, to nie sekret. Build w CI bez niej się przerywa. |
-| `GEMINI_API_KEY`        | `worker/.dev.vars`                            | sekret Workera: `cd worker && npx wrangler secret put GEMINI_API_KEY` | Klucz Gemini. Nigdy w repo ani w kodzie strony.                                                 |
-| `GEMINI_MODEL`          | `worker/wrangler.toml` (`[vars]`)             | to samo                                                               | Nazwa modelu Gemini.                                                                            |
-| `ALLOWED_ORIGINS`       | `worker/.dev.vars` (np. `http://localhost:*`) | `worker/wrangler.toml` (`[vars]`)                                     | Originy dopuszczone przez CORS, oddzielone przecinkami.                                         |
-| `CLOUDFLARE_API_TOKEN`  | nie jest potrzebny                            | sekret repozytorium GitHub                                            | Token API Cloudflare, którym CI wdraża Workera (`wrangler deploy`).                             |
-| `CLOUDFLARE_ACCOUNT_ID` | nie jest potrzebny                            | sekret repozytorium GitHub                                            | Konto Cloudflare, na które CI wdraża Workera.                                                   |
+| Nazwa                   | Gdzie lokalnie                                | Gdzie na produkcji                                                    | Do czego                                                                                                      |
+| ----------------------- | --------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_URL`          | `web/.env.local`                              | zmienna repozytorium GitHub (Settings › Variables)                    | Adres Workera wbudowywany w stronę. Publiczny, to nie sekret. Bez niej build w CI (poza PR-ami) się przerywa. |
+| `GEMINI_API_KEY`        | `worker/.dev.vars`                            | sekret Workera: `cd worker && npx wrangler secret put GEMINI_API_KEY` | Klucz Gemini. Nigdy w repo ani w kodzie strony.                                                               |
+| `GEMINI_MODEL`          | `worker/wrangler.toml` (`[vars]`)             | to samo                                                               | Nazwa modelu Gemini.                                                                                          |
+| `ALLOWED_ORIGINS`       | `worker/.dev.vars` (np. `http://localhost:*`) | `worker/wrangler.toml` (`[vars]`)                                     | Originy dopuszczone przez CORS, oddzielone przecinkami.                                                       |
+| `CLOUDFLARE_API_TOKEN`  | nie jest potrzebny                            | sekret repozytorium GitHub                                            | Token API Cloudflare, którym CI wdraża Workera (`wrangler deploy`).                                           |
+| `CLOUDFLARE_ACCOUNT_ID` | nie jest potrzebny                            | sekret repozytorium GitHub                                            | Konto Cloudflare, na które CI wdraża Workera.                                                                 |
 
 `worker/.dev.vars` i `web/.env.local` są w `.gitignore`. W repo są tylko wzory `.dev.vars.example` i `.env.example`.
 
@@ -97,11 +97,11 @@ Testy jednostkowe (Vitest) są na granicach modułów, bez sieci i przeglądarki
 - **handler Workera** (`worker/src/handler.test.ts`) z fałszywym adapterem Gemini i fałszywym limitem: CORS, preflight, 400/403/413/429/502/503, ponowna Próba;
 - **moduły strony** (`web/src/lib/*.test.ts`): wybór i sprawdzenie PDF-a, komunikaty błędów po polsku, formatowanie Kwot i dat, Historia przy zablokowanym storage.
 
-Interfejs i odczyt PDF-a przez pdf.js były sprawdzane ręcznie w przeglądarce, łącznie z testową umową z briefu.
+Interfejs i odczyt PDF-a przez pdf.js były sprawdzane ręcznie w przeglądarce, łącznie z testową umową z zadania rekrutacyjnego.
 
 ## Znane ograniczenia
 
-- **Brak OCR i obsługi skanów.** PDF bez warstwy tekstowej dostaje komunikat zamiast Analizy. W dokumencie mieszanym strony-skany są po cichu pomijane. W testowej umowie aneks na str. 11 jest skanem, więc zmiana abonamentu (13 100 zł od 01.04.2027) i liczby użytkowników (135) nie trafia do Wyniku.
+- **Brak OCR i obsługi skanów.** PDF bez warstwy tekstowej dostaje komunikat zamiast Wyniku. W dokumencie mieszanym strony-skany są po cichu pomijane. W testowej umowie aneks na str. 11 jest skanem, więc zmiana abonamentu (13 100 zł od 01.04.2027) i liczby użytkowników (135) nie trafia do Wyniku.
 - **Brak dzielenia na fragmenty.** Dokument z ponad 500 000 znaków tekstu jest odrzucany zamiast analizowany w częściach.
 - **Darmowy plan Gemini.** Limit zapytań jest wspólny dla wszystkich odwiedzających demo, więc przy ruchu może się chwilowo wyczerpać (komunikat 503 z prośbą o ponowienie). Google może wykorzystywać treści przesłane w darmowym planie do ulepszania swoich modeli, dlatego strona prosi, żeby nie wgrywać dokumentów poufnych.
 - **Limit minutowy jest na produkcji przybliżony.** Binding Rate Limiting liczy osobno w każdej lokalizacji Cloudflare. W teście z jednego IP przeszło 13 Analiz w 60 s. Przed wyczerpaniem darmowego limitu chroni dokładny limit dobowy (szczegóły w ADR 0001). Analiza zakończona błędem dostawcy też zużywa jedną z 30 dobowych.

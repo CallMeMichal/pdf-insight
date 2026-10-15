@@ -21,19 +21,17 @@ Gemini nie był narzędziem pracy: to model, którego używa sama aplikacja.
 
 ## Kluczowe prompty
 
-Prompty do Claude Code były krótkie, bo kontekst niosły skille, glosariusz i tickety. Najważniejsza praca działa się w odpowiedziach na pytania AI.
+Prompty do Claude Code były krótkie, bo kontekst niosły skille, glosariusz i tickety. Cytaty poniżej to dosłowne polecenia (z poprawioną pisownią).
 
-1. **Przesłuchanie wymagań: `/grill-with-docs _materials`.** AI przeczytało brief i testową umowę, zauważyło w niej rzeczy ważne dla decyzji (aneks jako skan, kilkadziesiąt kwot w trzech walutach, próba prompt injection na str. 4) i zadawało pytania po kilka naraz, każde z rekomendacją, np.:
+1. **`/grill-with-docs _materials`** — przesłuchanie wymagań na podstawie briefu i testowej umowy. AI zauważyło w umowie rzeczy ważne dla decyzji (aneks jako skan, kilkadziesiąt kwot w trzech walutach, próba prompt injection na str. 4) i zadało cztery rundy pytań, każde z rekomendacją. Odpowiedzi były krótkie: „Q1 — niech będzie Cloudflare Workers, Q2 — Gemini Flash, Q3 — A, Q4 — A…”. **Wynik:** architektura (tekst wyciągany w przeglądarce, proxy w Workerze), reguły treści Wyniku (typ z Dokumentu głównego, jedna Kwota na znaczenie, daty z precyzją z dokumentu, kwartał jako rok), blok `meta`, limity Analiz i glosariusz [CONTEXT.md](CONTEXT.md).
 
-   > **Q3 — Gdzie odbywa się ekstrakcja tekstu:** (a) w przeglądarce przez pdf.js: do backendu idzie tylko tekst, payload jest mały, liczba stron jest znana bez AI […]; (b) cały PDF idzie do backendu albo do Gemini, który czyta PDF natywnie i przy okazji robi OCR. […] ➡️ (a) pdf.js w przeglądarce.
+2. **„A nie da się tego zrobić w .NET? Mam Claude, to może z tego skorzystamy.”** — pytanie zadane w trakcie przesłuchania. AI rozpisało hosting .NET (Cloudflare Workers go nie uruchamiają, darmowe plany z usypianiem instancji mają cold start 30–60 s, co łamie wymaganie Wyniku w mniej niż 30 s) i wyjaśniło, że subskrypcja Claude nie obejmuje API, które jest płatne z góry. **Wynik:** świadomy wybór Cloudflare Workers i darmowego planu Gemini zamiast backendu w .NET i płatnego modelu.
 
-   Odpowiedzi były krótkie („Q1 — niech będzie Cloudflare Workers, Q2 — Gemini Flash, Q3 — A, Q4 — A…”). Po pytaniu „a nie da się tego zrobić w .NET?” AI rozpisało hosting .NET i odradziło darmowe plany z usypianiem instancji, bo cold start 30–60 s łamie wymaganie Wyniku w mniej niż 30 s. Z czterech rund powstały: architektura, reguły treści Wyniku (typ z Dokumentu głównego, jedna Kwota na znaczenie, daty z precyzją z dokumentu, kwartał jako rok), blok `meta`, nadpisywanie `fileName`/`pages` w Workerze, limity i glosariusz.
+3. **`/to-spec`, `/to-tickets`, a potem „A możemy to dodać do GitHub Issues?”** — skille zamieniły ustalenia w specyfikację i tickety jako lokalne pliki markdown. **Wynik:** spec (#1) i dziewięć ticketów w pionowych plastrach (#2–#10) w GitHub Issues, z zależnościami „blocked by” i kryteriami akceptacji. Walking skeleton (#2) był wdrożony na Pages i Cloudflare, zanim powstała jakakolwiek logika.
 
-2. **Specyfikacja i tickety: `/to-spec`, potem `/to-tickets`.** Spec (#1) zebrał historie użytkownika, moduły z granicami do testów, kontrakt API i decyzje testowe. Tickety to pionowe plastry z zależnościami: walking skeleton (#2) wdrożony od razu na Pages i Cloudflare, potem schemat, Gemini, limity, widok Wyniku, upload, Historia, dostępność, dokumentacja.
+4. **`/implement 5`, a w trakcie: „Dodaj, żeby wyskakiwało jakieś ostrzeżenie po przekroczeniu 5 Analiz na minutę na IP.”** — typowy przebieg ticketu: skill każe zrealizować ticket z TDD na uzgodnionych granicach, uruchomić typecheck i testy, zrobić `/code-review` i commit, a polecenia po drodze korygują zakres. **Wynik:** osobne kody błędu dla limitu minutowego i dobowego w Workerze oraz ostrzeżenie w web z czasem z `Retry-After`. Test tego ostrzeżenia na produkcji pokazał, że limit minutowy jest tam tylko przybliżony (patrz „Gdzie AI się pomyliło”).
 
-3. **Realizacja ticketu: `/implement <numer>`.** Skill każe: zrealizować ticket, użyć TDD na uzgodnionych granicach, regularnie uruchamiać typecheck i pojedyncze testy, na końcu pełny zestaw testów, potem `/code-review` i commit. Polecenia po drodze były krótkie i konkretne, np. „dodaj, żeby wyskakiwało jakieś ostrzeżenie po przekroczeniu 5 Analiz na minutę na IP” (z tego powstały osobne kody błędu dla limitu minutowego i dobowego) albo „wypchnij i domknij”.
-
-4. **Prompt Analizy dla Gemini** (`worker/src/prompt.ts`) — prompt, który wykonuje właściwą pracę aplikacji. Instrukcja systemowa (skrót):
+5. **Prompt Analizy dla Gemini** (`worker/src/prompt.ts`) — prompt, który wykonuje właściwą pracę aplikacji. Instrukcja systemowa (skrót):
 
    ```text
    You are a document analysis engine. [...] Use only information present in the document text.
@@ -60,7 +58,8 @@ Prompty do Claude Code były krótkie, bo kontekst niosły skille, glosariusz i 
 - **Propozycja wdrożenia Gemini przed limitami (#4).** Kolejność ticketów pozwalała wypchnąć prawdziwe wywołanie Gemini (#4) przed limitami (#5) i AI początkowo to zaproponowało. Automatyczny przegląd bezpieczeństwa wskazał, że CORS nie chroni przed `curl`, więc każdy mógłby bez limitu zużywać klucz. AI wycofało rekomendację i #4 trafiło na produkcję razem z #5.
 - **Logi z treścią odpowiedzi Gemini (#4).** Pierwsza wersja Workera zapisywała do logów Cloudflare treść błędu od Google, która mogła cytować fragmenty Dokumentu. Wykrył to automatyczny przegląd bezpieczeństwa; teraz logowane są tylko kody błędów.
 - **Build bez adresu Workera (#2).** CI budowało stronę także bez ustawionej zmiennej `VITE_API_URL` i wdrażałoby demo wysyłające żądania pod adres `undefined`. Wykryte w recenzji szkieletu; build w CI przerywa się teraz z czytelnym błędem.
-- **Ponowienie, które nie może się udać (#7).** Przy przekroczonym limicie dobowym strona pokazywała „Spróbuj ponownie”, a natychmiastowe ponowienie znów dawało 429. Do tego licznik przeciągania pliku opierał się na `relatedTarget`, którego Safari nie podaje. Oba błędy wykryła recenzja kodu.
+- **Ponowienie, które nie może się udać (#7).** Przy przekroczonym limicie dobowym strona pokazywała „Spróbuj ponownie”, a natychmiastowe ponowienie znów dawało 429. Wykryte w recenzji kodu; przycisk jest teraz tylko przy błędach, po których ponowienie ma sens.
+- **Przeciąganie pliku w Safari (#7).** Podświetlenie pola przy przeciąganiu pliku opierało się na `relatedTarget`, którego Safari nie podaje, więc pole mogło zostać podświetlone po wyjechaniu kursorem. Wykryte w recenzji kodu; zamiast tego licznik zdarzeń `dragenter`/`dragleave`.
 - **Nadpisanie Historii przy błędzie odczytu (#8).** Gdy odczyt `localStorage` zawodził, a zapis działał, dodanie Wyniku zastępowało całą Historię samym nowym wpisem. Wykryte w recenzji, poprawione najpierw testem, który nie przechodził, potem kodem.
 
 Wniosek: błędy dotyczące świata zewnętrznego (czas odpowiedzi modelu, zachowanie bindingu na produkcji) wychodziły dopiero w pomiarze na prawdziwej infrastrukturze, a błędy w kodzie łapały recenzje w osobnych subagentach. Dlatego każdy ticket kończył się sprawdzeniem w przeglądarce, a zmiany w Workerze testem na produkcji.
@@ -91,7 +90,7 @@ Wniosek: błędy dotyczące świata zewnętrznego (czas odpowiedzi modelu, zacho
 - Limity Analiz na adres IP: 5 na minutę (binding Rate Limiting) i 30 na dobę UTC (Durable Object `DailyAnalysisCounter`, licznik kasowany po końcu doby). Przekroczenie → 429 `MINUTE_RATE_LIMITED` albo `DAILY_RATE_LIMITED` z `Retry-After` udostępnionym przeglądarce przez CORS. Limit liczy tylko żądania, które przeszły walidację.
 - Walidacja wejścia: pusty tekst → 400 `EMPTY_TEXT`, tekst ponad 500 000 znaków → 413 `TEXT_TOO_LONG`, ciało ponad limit bajtów → 413 `PAYLOAD_TOO_LARGE` (odczyt strumieniowy, bez buforowania dowolnie dużego żądania). 429 od Gemini → 503 `AI_QUOTA_EXCEEDED`, bez ponawiania.
 - TDD na seamie handlera z fałszywym limitem. Na prośbę właściciela ostrzeżenie w web po przekroczeniu limitu, z czasem oczekiwania.
-- Dwa ADR-y: limit dobowy w Durable Object oraz przybliżony limit minutowy na produkcji (patrz „Gdzie AI się pomyliło”).
+- [ADR 0001](docs/adr/0001-limit-dobowy-w-durable-object.md): limit dobowy w Durable Object, a w konsekwencjach przybliżony limit minutowy na produkcji (patrz „Gdzie AI się pomyliło”).
 
 ### #6 Widok Wyniku i eksport JSON
 
