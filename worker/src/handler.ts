@@ -44,33 +44,11 @@ function error(code: AnalyzeErrorCode, headers?: Record<string, string>): Respon
 }
 
 /**
- * Największe dopuszczalne ciało żądania. Tekst o długości `MAX_TEXT_LENGTH` w najgorszym
- * przypadku zajmuje w JSON-ie 6 bajtów na znak (`\u0001`), do tego zapas na pozostałe pola.
+ * Największe dopuszczalne ciało żądania w znakach. Tekst o długości `MAX_TEXT_LENGTH`
+ * w najgorszym przypadku zajmuje w JSON-ie 6 znaków na znak (`\u0001`), do tego zapas na
+ * pozostałe pola. Większe ciało (np. ogromna nazwa pliku) jest odrzucane przed parsowaniem.
  */
-const MAX_BODY_BYTES = 6 * MAX_TEXT_LENGTH + 64 * 1024;
-
-/**
- * Czyta ciało strumieniowo i przerywa po przekroczeniu `maxBytes`, zamiast buforować dowolnie
- * duże żądanie. Zwraca `null`, gdy ciało jest za duże.
- */
-async function readBody(request: Request, maxBytes: number): Promise<string | null> {
-  if (!request.body) return '';
-  const reader = request.body.getReader();
-  const decoder = new TextDecoder();
-  let size = 0;
-  let text = '';
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > maxBytes) {
-      await reader.cancel();
-      return null;
-    }
-    text += decoder.decode(value, { stream: true });
-  }
-  return text + decoder.decode();
-}
+const MAX_BODY_LENGTH = 6 * MAX_TEXT_LENGTH + 64 * 1024;
 
 function parseAnalyzeRequest(body: unknown): AnalyzeRequest | null {
   if (typeof body !== 'object' || body === null) return null;
@@ -158,8 +136,8 @@ export async function handleRequest(request: Request, config: HandlerConfig): Pr
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   if (request.method !== 'POST') return error('NOT_FOUND', cors);
 
-  const rawBody = await readBody(request, MAX_BODY_BYTES);
-  if (rawBody === null) return error('TEXT_TOO_LONG', cors);
+  const rawBody = await request.text();
+  if (rawBody.length > MAX_BODY_LENGTH) return error('TEXT_TOO_LONG', cors);
   let body: unknown;
   try {
     body = JSON.parse(rawBody);
