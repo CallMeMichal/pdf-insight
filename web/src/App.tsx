@@ -3,6 +3,7 @@ import type { Result } from '@pdf-insight/shared';
 import { analyze } from './api/analyze';
 import { analyzeErrorMessage, type AnalyzeErrorMessage } from './api/messages';
 import { FileInput } from './components/FileInput';
+import { ResultView } from './components/ResultView';
 
 type ScreenState =
   | { status: 'empty' }
@@ -51,7 +52,7 @@ export function App() {
           </p>
         )}
       </div>
-      {state.status === 'result' && <pre>{JSON.stringify(state.result, null, 2)}</pre>}
+      {state.status === 'result' && <ResultView result={state.result} />}
     </main>
   );
 }

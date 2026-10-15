@@ -38,3 +38,159 @@ pre {
 .warning::before {
   content: '⚠ ';
 }
+
+.result {
+  margin-top: 1.5rem;
+}
+
+.result-header h2 {
+  margin: 0.25rem 0 0.5rem;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.result-type {
+  display: inline-block;
+  margin: 0;
+  padding: 0.125rem 0.625rem;
+  color: #1d3a6e;
+  background: #e1e9f8;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.result-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #49454f;
+}
+
+.result-section {
+  margin-top: 1.25rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #e3e1e6;
+  border-radius: 0.5rem;
+  overflow-wrap: anywhere;
+}
+
+.result-section h3 {
+  margin: 0 0 0.5rem;
+  font-size: 1.125rem;
+}
+
+.result-section h4 {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 1rem;
+}
+
+.result-section h3 + h4 {
+  margin-top: 0;
+}
+
+.result-section p,
+.result-section ul {
+  margin: 0;
+}
+
+.result-section ul {
+  padding-left: 1.25rem;
+}
+
+.empty {
+  color: #5f5b66;
+  font-style: italic;
+}
+
+.mentions {
+  list-style: none;
+}
+
+.result-section .mentions {
+  padding: 0;
+}
+
+.mentions li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1rem;
+  padding: 0.375rem 0;
+  border-bottom: 1px solid #efedf1;
+}
+
+.mentions li:last-child {
+  border-bottom: none;
+}
+
+.mention-value {
+  min-width: 9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mention-context {
+  flex: 1 1 12rem;
+}
+
+.result-section .keywords {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.keywords li {
+  padding: 0.125rem 0.625rem;
+  background: #f0eef3;
+  border-radius: 999px;
+  font-size: 0.875rem;
+}
+
+.metadata {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+  margin: 0;
+}
+
+.metadata dt {
+  color: #49454f;
+}
+
+.metadata dd {
+  margin: 0;
+}
+
+.result-export button {
+  padding: 0.5rem 1rem;
+  color: #fff;
+  background: #1d4ed8;
+  border: none;
+  border-radius: 0.375rem;
+  font: inherit;
+  cursor: pointer;
+}
+
+.result-export button:hover {
+  background: #1e40af;
+}
+
+.result-export details {
+  margin-top: 0.75rem;
+}
+
+.result-export summary {
+  cursor: pointer;
+}
+
+.result-export pre {
+  margin: 0.5rem 0 0;
+}
