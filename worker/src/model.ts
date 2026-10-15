@@ -2,13 +2,7 @@
 export type ModelErrorCode =
   /** Dostawca odrzucił żądanie z powodu wyczerpanego limitu (HTTP 429). */
   | 'RATE_LIMITED'
-  /** Dostawca odmówił odpowiedzi (np. filtr bezpieczeństwa). */
-  | 'BLOCKED'
-  /** Przekroczony czas na odpowiedź. */
-  | 'TIMEOUT'
-  /** Brak połączenia z dostawcą. */
-  | 'NETWORK_ERROR'
-  /** Każdy inny błąd dostawcy (np. HTTP 5xx, nieoczekiwany kształt odpowiedzi). */
+  /** Każdy inny błąd: sieć, przekroczony czas, odmowa odpowiedzi, HTTP 5xx. */
   | 'PROVIDER_ERROR';
 
 export type ModelResponse = { ok: true; text: string } | { ok: false; error: ModelErrorCode };

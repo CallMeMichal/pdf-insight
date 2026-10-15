@@ -123,15 +123,18 @@ export function createGeminiAdapter({ apiKey, model }: GeminiConfig): ModelAdapt
         }
         body = await response.json();
       } catch (cause) {
-        if (signal.aborted) return failure('TIMEOUT');
-        console.error(`Gemini: błąd połączenia lub odpowiedzi (${(cause as Error).name})`);
-        return failure(cause instanceof SyntaxError ? 'PROVIDER_ERROR' : 'NETWORK_ERROR');
+        const reason = signal.aborted ? 'przekroczony czas' : (cause as Error).name;
+        console.error(`Gemini: błąd połączenia lub odpowiedzi (${reason})`);
+        return failure('PROVIDER_ERROR');
       }
 
-      if (body.promptFeedback?.blockReason) return failure('BLOCKED');
       const candidate = body.candidates?.[0];
-      if (candidate?.finishReason && BLOCKED_FINISH_REASONS.has(candidate.finishReason)) {
-        return failure('BLOCKED');
+      const finishReason = candidate?.finishReason ?? '';
+      if (body.promptFeedback?.blockReason || BLOCKED_FINISH_REASONS.has(finishReason)) {
+        console.error(
+          `Gemini: odmowa odpowiedzi (${body.promptFeedback?.blockReason ?? finishReason})`,
+        );
+        return failure('PROVIDER_ERROR');
       }
 
       // Pusta lub ucięta odpowiedź to niepoprawny Wynik — handler ją odrzuci i ponowi Próbę.

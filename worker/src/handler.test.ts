@@ -153,7 +153,7 @@ describe('POST /analyze', () => {
   });
 
   it('przy błędzie dostawcy zwraca 502 AI_PROVIDER_ERROR bez ponawiania', async () => {
-    const model = fakeModel({ ok: false, error: 'NETWORK_ERROR' });
+    const model = fakeModel({ ok: false, error: 'PROVIDER_ERROR' });
 
     const response = await handleRequest(analyzeRequest(validBody), configWith(model));
 
