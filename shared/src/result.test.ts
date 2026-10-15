@@ -47,6 +47,13 @@ describe('resultSchema — poprawne Wyniki', () => {
     expect(resultSchema.safeParse(result).success).toBe(true);
   });
 
+  it.each(['PLN', 'EUR', 'USD', 'GBP', 'CHF', 'XAU'])('akceptuje kod waluty %s', (currency) => {
+    const result = validResult();
+    result.amounts = [{ value: 100, currency, context: 'kwota' }];
+
+    expect(resultSchema.safeParse(result).success).toBe(true);
+  });
+
   it.each(['2026-03-02', '2026-03', '2026'])('akceptuje datę w precyzji %s', (date) => {
     const result = validResult();
     result.document.date = date;
@@ -102,11 +109,14 @@ describe('resultSchema — niepoprawne Wyniki', () => {
     });
   });
 
-  it.each(['pln', 'PL', 'PLNN', 'zł', '', 'ABC', 'XYZ'])('odrzuca kod waluty %j', (currency) => {
-    expectInvalid((result) => {
-      result.amounts = [{ value: 100, currency, context: 'kwota' }];
-    });
-  });
+  it.each(['pln', 'PL', 'PLNN', 'zł', '', 'ABC', 'XYZ', 'XTS', 'XXX'])(
+    'odrzuca kod waluty %j',
+    (currency) => {
+      expectInvalid((result) => {
+        result.amounts = [{ value: 100, currency, context: 'kwota' }];
+      });
+    },
+  );
 
   it.each(['PL', 'pol', 'p', 'pl-PL', ''])('odrzuca kod języka %j', (language) => {
     expectInvalid((result) => {

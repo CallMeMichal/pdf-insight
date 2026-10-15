@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { ISO_4217_CODES } from './currencies';
 import { MAX_KEY_POINTS, MAX_KEYWORDS, MIN_KEY_POINTS } from './limits';
 
 export const documentTypeSchema = z.enum(['faktura', 'umowa', 'oferta', 'raport', 'inne']);
@@ -22,9 +23,6 @@ function isPartialDate(value: string): boolean {
 export const partialDateSchema = z.string().refine(isPartialDate, {
   message: 'Oczekiwano daty w formacie YYYY-MM-DD, YYYY-MM lub YYYY',
 });
-
-/** Kody walut ISO 4217 znane środowisku (przeglądarka, Node i Worker mają tę samą listę ICU). */
-const ISO_4217_CODES = new Set(Intl.supportedValuesOf('currency'));
 
 export const amountSchema = z.object({
   value: z.number(),
