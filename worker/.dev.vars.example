@@ -1,0 +1,2 @@
+# Skopiuj do worker/.dev.vars (plik ignorowany przez git). Prawdziwe sekrety nigdy do repo.
+ALLOWED_ORIGINS=https://callmemichal.github.io,http://localhost:*

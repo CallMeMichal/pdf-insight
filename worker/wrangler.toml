@@ -1,0 +1,8 @@
+name = "pdf-insight"
+main = "src/index.ts"
+compatibility_date = "2026-10-01"
+
+[vars]
+# Lista originów oddzielonych przecinkami; `*` w miejscu portu dopuszcza dowolny port.
+# Lokalnie nadpisywane w .dev.vars (np. o http://localhost:*).
+ALLOWED_ORIGINS = "https://callmemichal.github.io"
