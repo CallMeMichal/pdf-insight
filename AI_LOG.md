@@ -55,3 +55,10 @@ Dziennik pracy z narzędziami AI przy budowie PDF Insight. Uzupełniany w kolejn
 - Handler: niepoprawna odpowiedź (zły JSON lub niezgodna ze schematem) → jedna automatyczna ponowna Próba → 502 `INVALID_RESULT`; błąd dostawcy → 502 `AI_PROVIDER_ERROR` bez ponawiania; łączny limit czasu Prób 25 s. `fileName` i `pages` z żądania, `meta` dokłada Worker.
 - TDD na seamie handlera z fake'iem adaptera: sukces z nadpisanymi metadanymi, jedna zła odpowiedź → 200, dwie → 502, błąd dostawcy → 502.
 - Weryfikacja lokalna z prawdziwym kluczem na testowej umowie: typ `umowa`, data `2026-03-12`, podsumowanie bez treści wstrzykniętej instrukcji, 18–23 s. Model zmieniony na `gemini-3.5-flash-lite` po pomiarze (patrz „Gdzie AI się pomyliło”).
+
+### #6 Widok Wyniku i eksport JSON
+
+- Widok Wyniku (`web/src/components/ResultView.tsx`) z sekcjami zamiast surowego JSON-a: nagłówek (typ, tytuł, data, język, liczba stron), podsumowanie, najważniejsze punkty, organizacje i osoby, Kwoty, Wzmianki o dacie, słowa kluczowe, metadane Analizy; puste listy pokazują łagodny komunikat. Wszystkie wartości z modelu renderowane jako tekst.
+- Eksport (`web/src/components/ResultExport.tsx`): zwijany podgląd pełnego JSON-a i pobranie pliku `<nazwa PDF-a>.json`; podgląd i plik powstają z tego samego łańcucha.
+- TDD na nowym seamie uzgodnionym przy tickecie — czysty moduł formatowania `web/src/lib/format.ts` (`web/src/lib/format.test.ts`): Kwoty w `pl-PL` (domyślny format nie grupuje liczb czterocyfrowych, stąd `useGrouping: 'always'`), daty z precyzją `YYYY-MM-DD`/`YYYY-MM`/`YYYY`, odmiana „strona/strony/stron”, nazwa Języka dokumentu, nazwa pliku eksportu. Komponenty bez testów automatycznych, zgodnie ze specem.
+- Weryfikacja w przeglądarce: odpowiedź-zaślepka z pustymi listami i HTML-em w podsumowaniu (wyświetlony jako tekst, brak przewijania w poziomie przy 360 px, plik = podgląd) oraz prawdziwa Analiza testowej umowy przez lokalny Worker (13 s).
