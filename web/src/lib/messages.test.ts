@@ -6,16 +6,14 @@ import { PdfReadError, type PdfProblem } from './pdfCheck';
 const fallback = errorMessage(new Error('nieznany błąd'));
 
 describe('errorMessage — błędy Analizy', () => {
-  it('przy limicie minutowym podaje czas z nagłówka Retry-After', () => {
-    const message = errorMessage(new AnalyzeError('MINUTE_RATE_LIMITED', 120));
+  it('przy limicie dobowym podaje czas z nagłówka Retry-After w godzinach i minutach', () => {
+    const message = errorMessage(new AnalyzeError('DAILY_RATE_LIMITED', 3700));
     expect(message.tone).toBe('warning');
-    expect(message.text).toContain('za 2 min');
+    expect(message.text).toContain('za 1 godz. 2 min');
   });
 
-  it('przy limicie dobowym podaje czas w godzinach i minutach', () => {
-    expect(errorMessage(new AnalyzeError('DAILY_RATE_LIMITED', 3700)).text).toContain(
-      'za 1 godz. 2 min',
-    );
+  it('przy limicie dobowym krótko przed północą UTC podaje czas w minutach', () => {
+    expect(errorMessage(new AnalyzeError('DAILY_RATE_LIMITED', 120)).text).toContain('za 2 min');
   });
 
   it('przy wyczerpanym limicie Gemini mówi, że to nie wina pliku, i każe spróbować za minutę', () => {
@@ -31,7 +29,6 @@ describe('errorMessage — błędy Analizy', () => {
     ['400', 'EMPTY_TEXT'],
     ['403', 'ORIGIN_NOT_ALLOWED'],
     ['413', 'TEXT_TOO_LONG'],
-    ['429', 'MINUTE_RATE_LIMITED'],
     ['429', 'DAILY_RATE_LIMITED'],
     ['502', 'INVALID_RESULT'],
     ['502', 'AI_PROVIDER_ERROR'],
@@ -53,7 +50,6 @@ describe('errorMessage — błędy Analizy', () => {
     'INVALID_RESULT',
     'AI_PROVIDER_ERROR',
     'AI_QUOTA_EXCEEDED',
-    'MINUTE_RATE_LIMITED',
     'INVALID_RESPONSE',
     'HTTP_500',
   ])('po %s można ponowić tę samą Analizę', (code) => {

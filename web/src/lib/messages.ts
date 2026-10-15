@@ -1,9 +1,4 @@
-import {
-  ANALYSES_PER_DAY,
-  ANALYSES_PER_MINUTE,
-  MAX_FILE_SIZE_MB,
-  MAX_TEXT_LENGTH,
-} from '@pdf-insight/shared';
+import { ANALYSES_PER_DAY, MAX_FILE_SIZE_MB, MAX_TEXT_LENGTH } from '@pdf-insight/shared';
 import { AnalyzeError, type ClientErrorCode } from '../api/errors';
 import { PdfReadError, type PdfProblem } from './pdfCheck';
 
@@ -79,11 +74,6 @@ function analyzeMessage(error: AnalyzeError): ErrorMessage {
   // Statusy bez kodu w ciele (`HTTP_<status>`) i nieznane kody trafiają do `default`.
   const code = error.code as KnownCode;
   switch (code) {
-    case 'MINUTE_RATE_LIMITED':
-      return retryableMessage(
-        `Przekroczono limit ${ANALYSES_PER_MINUTE} analiz na minutę z Twojego adresu IP. ${retryHint(error, 'Spróbuj ponownie za minutę.')}`,
-        'warning',
-      );
     case 'DAILY_RATE_LIMITED':
       return finalMessage(
         `Wykorzystano dzienny limit ${ANALYSES_PER_DAY} analiz z Twojego adresu IP. ${retryHint(error, 'Spróbuj ponownie jutro.')}`,

@@ -10,8 +10,6 @@ export interface Env {
   GEMINI_MODEL: string;
   /** Sekret Workera (`wrangler secret put GEMINI_API_KEY`), lokalnie w `.dev.vars`. */
   GEMINI_API_KEY: string;
-  /** Binding Rate Limiting: minutowy limit Analiz na adres IP (wartość w wrangler.toml). */
-  MINUTE_RATE_LIMITER: RateLimit;
   /** Durable Object z dobowym licznikiem Analiz na adres IP. */
   DAILY_RATE_LIMITER: DurableObjectNamespace<DailyAnalysisCounter>;
 }
@@ -22,10 +20,7 @@ export default {
       .map((origin) => origin.trim())
       .filter(Boolean);
     const model = createGeminiAdapter({ apiKey: env.GEMINI_API_KEY, model: env.GEMINI_MODEL });
-    const rateLimiter = createCloudflareRateLimiter(
-      env.MINUTE_RATE_LIMITER,
-      env.DAILY_RATE_LIMITER,
-    );
+    const rateLimiter = createCloudflareRateLimiter(env.DAILY_RATE_LIMITER);
     return handleRequest(request, { allowedOrigins, model, rateLimiter });
   },
 } satisfies ExportedHandler<Env>;
