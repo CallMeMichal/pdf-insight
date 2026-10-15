@@ -1,3 +1,4 @@
+import type { AnalyzeRequest } from '@pdf-insight/shared';
 import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 // `?url` sprawia, że Vite emituje plik workera i zwraca adres z prefiksem `base`
 // (/pdf-insight/), więc worker ładuje się poprawnie także na GitHub Pages.
@@ -5,14 +6,8 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 
-export interface PdfText {
-  text: string;
-  pages: number;
-  fileName: string;
-}
-
-/** Wyciąga tekst ze wszystkich stron PDF-a. */
-export async function readPdf(file: File): Promise<PdfText> {
+/** Wyciąga tekst ze wszystkich stron PDF-a — gotowe ciało żądania Analizy. */
+export async function readPdf(file: File): Promise<AnalyzeRequest> {
   const data = new Uint8Array(await file.arrayBuffer());
   const loadingTask = getDocument({ data });
   const pdf = await loadingTask.promise;

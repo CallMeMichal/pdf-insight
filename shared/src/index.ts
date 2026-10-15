@@ -18,7 +18,7 @@ export interface DateMention {
   context: string;
 }
 
-/** Result Analysis. Tymczasowo zwykły typ — schemat Zod dojdzie w kolejnym tickecie. */
+/** Wynik Analizy. Tymczasowo zwykły typ — schemat Zod dojdzie w kolejnym tickecie. */
 export interface Result {
   document: {
     fileName: string;
@@ -44,4 +44,6 @@ export interface Result {
   };
 }
 
-export const MAX_TEXT_LENGTH = 500_000;
+/** Maszynowy kod błędu w ciele odpowiedzi Workera (`{ error: AnalyzeErrorCode }`). */
+export type AnalyzeErrorCode =
+  'ORIGIN_NOT_ALLOWED' | 'INVALID_INPUT' | 'NOT_FOUND' | 'METHOD_NOT_ALLOWED';

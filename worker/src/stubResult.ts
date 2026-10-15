@@ -1,6 +1,6 @@
 import type { AnalyzeRequest, Result } from '@pdf-insight/shared';
 
-/** Stały przykładowy Result zwracany, dopóki Worker nie odpytuje Gemini. */
+/** Stały przykładowy Wynik zwracany, dopóki Worker nie odpytuje Gemini. */
 export function stubResult({ fileName, pages }: AnalyzeRequest): Result {
   return {
     document: {
@@ -12,7 +12,7 @@ export function stubResult({ fileName, pages }: AnalyzeRequest): Result {
       date: '2026-10-15',
     },
     summary:
-      'To jest zaślepka Resultu zwracana przez Worker. Prawdziwa Analysis przez Gemini pojawi się w kolejnym etapie. Nazwa pliku i liczba stron pochodzą z wgranego Documentu.',
+      'To jest zaślepka Wyniku zwracana przez Worker. Prawdziwa Analiza przez Gemini pojawi się w kolejnym etapie. Nazwa pliku i liczba stron pochodzą z wgranego Dokumentu.',
     keyPoints: [
       'Przykładowy punkt pierwszy',
       'Przykładowy punkt drugi',

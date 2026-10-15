@@ -1,20 +1,25 @@
-import type { AnalyzeRequest, Result } from '@pdf-insight/shared';
+import type { AnalyzeErrorCode, AnalyzeRequest, Result } from '@pdf-insight/shared';
+
+/** Kod błędu z Workera albo błąd po stronie przeglądarki (sieć, nieoczekiwany status). */
+export type ClientErrorCode = AnalyzeErrorCode | 'NETWORK_ERROR' | `HTTP_${number}`;
+
+const API_URL = import.meta.env.VITE_API_URL.replace(/\/+$/, '');
 
 export class AnalyzeError extends Error {
-  readonly code: string;
+  readonly code: ClientErrorCode;
 
-  constructor(code: string) {
-    super(`Analysis nie powiodła się: ${code}`);
+  constructor(code: ClientErrorCode) {
+    super(`Analiza nie powiodła się: ${code}`);
     this.name = 'AnalyzeError';
     this.code = code;
   }
 }
 
-/** Wysyła tekst Documentu do Workera i zwraca Result. */
+/** Wysyła tekst Dokumentu do Workera i zwraca Wynik. */
 export async function analyze(request: AnalyzeRequest): Promise<Result> {
   let response: Response;
   try {
-    response = await fetch(`${import.meta.env.VITE_API_URL}/analyze`, {
+    response = await fetch(`${API_URL}/analyze`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(request),
@@ -27,8 +32,8 @@ export async function analyze(request: AnalyzeRequest): Promise<Result> {
     const body: unknown = await response.json().catch(() => null);
     const code =
       typeof body === 'object' && body !== null && 'error' in body && typeof body.error === 'string'
-        ? body.error
-        : `HTTP_${response.status}`;
+        ? (body.error as AnalyzeErrorCode)
+        : (`HTTP_${response.status}` as const);
     throw new AnalyzeError(code);
   }
 

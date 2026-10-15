@@ -1,12 +1,10 @@
-import type { AnalyzeRequest } from '@pdf-insight/shared';
+import type { AnalyzeErrorCode, AnalyzeRequest } from '@pdf-insight/shared';
 import { corsHeaders, isOriginAllowed } from './cors';
 import { stubResult } from './stubResult';
 
 export interface HandlerConfig {
   allowedOrigins: string[];
 }
-
-type ErrorCode = 'ORIGIN_NOT_ALLOWED' | 'INVALID_INPUT' | 'NOT_FOUND' | 'METHOD_NOT_ALLOWED';
 
 function json(body: unknown, status: number, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), {
@@ -15,7 +13,7 @@ function json(body: unknown, status: number, headers: Record<string, string> = {
   });
 }
 
-function error(code: ErrorCode, status: number, headers?: Record<string, string>): Response {
+function error(code: AnalyzeErrorCode, status: number, headers?: Record<string, string>): Response {
   return json({ error: code }, status, headers);
 }
 

@@ -8,7 +8,8 @@ on:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Na main nie przerywamy trwającego deployu kolejnym pushem.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   check:
@@ -24,6 +25,13 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - name: Check VITE_API_URL
+        if: github.event_name != 'pull_request'
+        run: |
+          if [ -z "${{ vars.VITE_API_URL }}" ]; then
+            echo "::error::Ustaw zmienną repozytorium VITE_API_URL (adres Workera)."
+            exit 1
+          fi
       - run: npm run build
         env:
           # Publiczny adres Workera — zmienna repozytorium (Settings › Variables), nie sekret.
