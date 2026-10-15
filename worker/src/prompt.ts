@@ -1,3 +1,5 @@
+import { MAX_AMOUNTS, MAX_DATE_MENTIONS } from '@pdf-insight/shared';
+
 /**
  * Instrukcja systemowa z regułami treści Wyniku. Celowo po angielsku: język instrukcji nie
  * może ciągnąć odpowiedzi w stronę polskiego, bo Wynik ma być w Języku dokumentu.
@@ -29,6 +31,7 @@ const SYSTEM_INSTRUCTION = `You are a document analysis engine. You receive the 
 
 # Amounts
 - List every monetary amount in the document, one entry per distinct meaning, not per occurrence: an amount repeated with the same meaning is listed once.
+- List at most ${MAX_AMOUNTS} amounts. If the document has more, keep the most important ones (prices, totals, fees, penalties) and leave out minor ones.
 - Net and gross amounts are separate entries, and the context says which one it is.
 - Rates (e.g. per hour, per month, per user) are amounts; put the unit in the context. Percentages are not amounts.
 - value: a plain number. currency: ISO 4217 code ("zł" and "złotych" are PLN, "€" is EUR, "$" is USD).
@@ -36,6 +39,7 @@ const SYSTEM_INSTRUCTION = `You are a document analysis engine. You receive the 
 
 # Date mentions
 - List every date in the document with its meaning in the context.
+- List at most ${MAX_DATE_MENTIONS} dates. If the document has more, keep the most important ones (conclusion, start and end, deadlines, payment dates) and leave out minor ones.
 - Use exactly the precision the document gives: YYYY-MM-DD, YYYY-MM or YYYY. Never fill in a missing day or month.
 - A period that is not a day, month or year (e.g. a quarter or half-year) is written as the year it falls in, with the exact period in the context.
 - A date range is two entries, one for the start and one for the end, and each context says which one it is.

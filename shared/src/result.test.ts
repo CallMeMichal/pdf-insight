@@ -76,6 +76,21 @@ describe('resultSchema — poprawne Wyniki', () => {
     expect(resultSchema.safeParse(result).success).toBe(true);
   });
 
+  it('akceptuje 60 Kwot i 40 Wzmianek o dacie', () => {
+    const result = validResult();
+    result.amounts = Array.from({ length: 60 }, (_, i) => ({
+      value: i,
+      currency: 'PLN',
+      context: `kwota ${i + 1}`,
+    }));
+    result.dates = Array.from({ length: 40 }, (_, i) => ({
+      date: '2026',
+      context: `data ${i + 1}`,
+    }));
+
+    expect(resultSchema.safeParse(result).success).toBe(true);
+  });
+
   it('akceptuje 29 lutego w roku przestępnym', () => {
     const result = validResult();
     result.document.date = '2028-02-29';
@@ -153,6 +168,25 @@ describe('resultSchema — niepoprawne Wyniki', () => {
   it('odrzuca więcej niż 10 słów kluczowych', () => {
     expectInvalid((result) => {
       result.keywords = Array.from({ length: 11 }, (_, i) => `słowo ${i + 1}`);
+    });
+  });
+
+  it('odrzuca więcej niż 60 Kwot', () => {
+    expectInvalid((result) => {
+      result.amounts = Array.from({ length: 61 }, (_, i) => ({
+        value: i,
+        currency: 'PLN',
+        context: `kwota ${i + 1}`,
+      }));
+    });
+  });
+
+  it('odrzuca więcej niż 40 Wzmianek o dacie', () => {
+    expectInvalid((result) => {
+      result.dates = Array.from({ length: 41 }, (_, i) => ({
+        date: '2026',
+        context: `data ${i + 1}`,
+      }));
     });
   });
 

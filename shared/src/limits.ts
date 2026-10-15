@@ -19,5 +19,13 @@ export const MAX_KEY_POINTS = 7;
 /** Schemat dopuszcza pustą listę; prompt prosi model o co najmniej 3 słowa kluczowe. */
 export const MAX_KEYWORDS = 10;
 
+/**
+ * Maksymalna liczba Kwot i Wzmianek o dacie w Wyniku. Czas Analizy zależy głównie od długości
+ * odpowiedzi modelu (~500 tokenów/s), więc bez limitu dokument z setkami kwot nie mieści się
+ * w 30 s. Przy nadmiarze model wybiera najważniejsze.
+ */
+export const MAX_AMOUNTS = 60;
+export const MAX_DATE_MENTIONS = 40;
+
 /** Wersja schematu Wyniku zapisywana w `meta.schemaVersion`. */
 export const SCHEMA_VERSION = 1;
