@@ -60,7 +60,6 @@ describe('errorMessage — błędy Analizy', () => {
     'INVALID_INPUT',
     'EMPTY_TEXT',
     'TEXT_TOO_LONG',
-    'PAYLOAD_TOO_LARGE',
     // Dobowy limit odnawia się po godzinach — natychmiastowe ponowienie znów skończy się 429.
     'DAILY_RATE_LIMITED',
   ])('po %s ponowienie z tym samym tekstem nie ma sensu', (code) => {

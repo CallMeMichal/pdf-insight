@@ -14,10 +14,8 @@ export type AnalyzeErrorCode =
   | 'INVALID_INPUT'
   /** Tekst Dokumentu jest pusty po przycięciu białych znaków. */
   | 'EMPTY_TEXT'
-  /** Tekst Dokumentu jest dłuższy niż `MAX_TEXT_LENGTH` znaków. */
+  /** Tekst Dokumentu (albo całe ciało żądania) przekracza limit `MAX_TEXT_LENGTH`. */
   | 'TEXT_TOO_LONG'
-  /** Ciało żądania jest większe, niż pozwala limit długości tekstu. */
-  | 'PAYLOAD_TOO_LARGE'
   /** Model dwukrotnie zwrócił odpowiedź, która nie jest poprawnym Wynikiem. */
   | 'INVALID_RESULT'
   /** Błąd dostawcy AI (sieć, przekroczony czas, odmowa, błąd po stronie dostawcy). */
@@ -26,5 +24,5 @@ export type AnalyzeErrorCode =
   | 'AI_QUOTA_EXCEEDED'
   /** Przekroczony dobowy limit Analiz z adresu IP; czas oczekiwania w nagłówku `Retry-After`. */
   | 'DAILY_RATE_LIMITED'
-  | 'NOT_FOUND'
-  | 'METHOD_NOT_ALLOWED';
+  /** Inna ścieżka niż `/analyze` albo inna metoda niż `POST` i `OPTIONS`. */
+  | 'NOT_FOUND';

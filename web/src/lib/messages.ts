@@ -101,7 +101,6 @@ function analyzeMessage(error: AnalyzeError): ErrorMessage {
     case 'EMPTY_TEXT':
       return finalMessage(NO_TEXT);
     case 'TEXT_TOO_LONG':
-    case 'PAYLOAD_TOO_LARGE':
       return finalMessage(TEXT_TOO_LONG);
     case 'INVALID_INPUT':
       return finalMessage(
@@ -110,7 +109,6 @@ function analyzeMessage(error: AnalyzeError): ErrorMessage {
     case 'ORIGIN_NOT_ALLOWED':
       return finalMessage('Usługa analizy nie przyjmuje żądań z tej strony.');
     case 'NOT_FOUND':
-    case 'METHOD_NOT_ALLOWED':
       return finalMessage('Usługa analizy jest nieprawidłowo skonfigurowana.');
     default:
       code satisfies never;

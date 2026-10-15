@@ -289,14 +289,14 @@ describe('POST /analyze', () => {
     expect(response.status).toBe(200);
   });
 
-  it('zwraca 413 PAYLOAD_TOO_LARGE dla ciała większego niż dopuszczalne, bez wywołania modelu', async () => {
+  it('zwraca 413 TEXT_TOO_LONG dla ciała większego niż dopuszczalne, bez wywołania modelu', async () => {
     const model = fakeModel();
     const body = { ...validBody, fileName: 'a'.repeat(4 * 1024 * 1024) };
 
     const response = await handleRequest(analyzeRequest(body), configWith(model));
 
     expect(response.status).toBe(413);
-    expect(await response.json()).toEqual({ error: 'PAYLOAD_TOO_LARGE' });
+    expect(await response.json()).toEqual({ error: 'TEXT_TOO_LONG' });
     expect(model.calls).toHaveLength(0);
   });
 });
@@ -397,13 +397,13 @@ describe('inne ścieżki i metody', () => {
     expect(response.status).toBe(404);
   });
 
-  it('zwraca 405 dla GET /analyze', async () => {
+  it('zwraca 404 dla GET /analyze', async () => {
     const request = new Request('https://worker.example/analyze', {
       headers: { Origin: DEMO_ORIGIN },
     });
 
     const response = await handleRequest(request, config);
 
-    expect(response.status).toBe(405);
+    expect(response.status).toBe(404);
   });
 });

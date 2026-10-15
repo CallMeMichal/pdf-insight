@@ -29,9 +29,7 @@ const ERROR_STATUS: Record<AnalyzeErrorCode, number> = {
   EMPTY_TEXT: 400,
   ORIGIN_NOT_ALLOWED: 403,
   NOT_FOUND: 404,
-  METHOD_NOT_ALLOWED: 405,
   TEXT_TOO_LONG: 413,
-  PAYLOAD_TOO_LARGE: 413,
   DAILY_RATE_LIMITED: 429,
   INVALID_RESULT: 502,
   AI_PROVIDER_ERROR: 502,
@@ -150,12 +148,10 @@ export async function handleRequest(request: Request, config: HandlerConfig): Pr
   const cors = corsHeaders(origin);
 
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
-  if (request.method !== 'POST') {
-    return error('METHOD_NOT_ALLOWED', { ...cors, Allow: 'POST, OPTIONS' });
-  }
+  if (request.method !== 'POST') return error('NOT_FOUND', cors);
 
   const rawBody = await readBody(request, MAX_BODY_BYTES);
-  if (rawBody === null) return error('PAYLOAD_TOO_LARGE', cors);
+  if (rawBody === null) return error('TEXT_TOO_LONG', cors);
   let body: unknown;
   try {
     body = JSON.parse(rawBody);
