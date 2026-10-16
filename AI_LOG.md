@@ -156,3 +156,16 @@ Odczyt PDF-a w przeglądarce trwał 0,2–0,3 s także przy 9,9 MB, więc rozmia
 - Ptaszek ukończonego etapu Analizy jako SVG, bo znak tekstowy siedział poza środkiem kółka.
 - Podgląd JSON-a można przewijać z klawiatury (zgłoszenie axe `scrollable-region-focusable`).
 - `meta description` na stronie. Lighthouse: dostępność 100/100. axe (WCAG 2.2 AA): ekran startowy, Wynik i ekran błędu bez uwag.
+
+### Uproszczenie kodu
+
+Cel: kod, który da się wytłumaczyć w kilka minut. Claude przejrzał całe repo, zaproponował listę uproszczeń z kosztami każdego i dopiero po akceptacji je wprowadził, każde w osobnym commicie:
+
+1. **Jeden limit Analiz.** Został tylko limit dobowy w Durable Object. Limit minutowy z bindingu Rate Limiting był na produkcji tylko przybliżony (ADR 0001).
+2. **Dwa kody błędu modelu** (`RATE_LIMITED`, `PROVIDER_ERROR`) zamiast pięciu, bo handler i tak rozróżniał tylko te dwa przypadki.
+3. **Mniej kodów błędu API.** `PAYLOAD_TOO_LARGE` scalony z `TEXT_TOO_LONG`, `METHOD_NOT_ALLOWED` z `NOT_FOUND`.
+4. **Limit Kwot i dat w jednym miejscu.** Schemat Wyniku nie ma już `.max()` dla tych list, więc nie trzeba osobnego schematu dla Gemini ani przycinania niesprawdzonego JSON-a. Listy przycina `toResult` po walidacji.
+5. **`request.text()`** zamiast ręcznego strumieniowego odczytu ciała.
+6. **Żądanie walidowane schematem Zod** (`analyzeRequestSchema`). Jedno `parseJson` obsługuje i żądanie, i odpowiedź modelu.
+7. **Waluta sprawdzana regexem**, bez wpisanej na stałe listy kodów ISO 4217.
+8. **CORS z dokładną listą originów**, bez `*` w miejscu portu.
