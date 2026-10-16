@@ -1,4 +1,5 @@
 # Skopiuj do worker/.dev.vars (plik ignorowany przez git). Prawdziwe sekrety nigdy do repo.
-ALLOWED_ORIGINS=https://callmemichal.github.io,http://localhost:*
+# Originy dokładnie, z portem: 5173 to `npm run dev:web`, 4173 to `vite preview`.
+ALLOWED_ORIGINS=https://callmemichal.github.io,http://localhost:5173,http://localhost:4173
 # Klucz z Google AI Studio (https://aistudio.google.com/apikey).
 GEMINI_API_KEY=

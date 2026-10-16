@@ -9,7 +9,7 @@ import {
   type AnalyzeRequest,
   type Result,
 } from '@pdf-insight/shared';
-import { corsHeaders, isOriginAllowed } from './cors';
+import { corsHeaders } from './cors';
 import type { ModelAdapter } from './model';
 import { generatedResultSchema, type GeneratedResult } from './generatedResult';
 import type { RateLimiter } from './rateLimit';
@@ -121,7 +121,7 @@ export async function handleRequest(request: Request, config: HandlerConfig): Pr
   if (url.pathname !== '/analyze') return error('NOT_FOUND');
 
   const origin = request.headers.get('Origin');
-  if (!origin || !isOriginAllowed(origin, config.allowedOrigins)) {
+  if (!origin || !config.allowedOrigins.includes(origin)) {
     return error('ORIGIN_NOT_ALLOWED');
   }
   const cors = corsHeaders(origin);

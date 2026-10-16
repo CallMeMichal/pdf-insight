@@ -80,14 +80,14 @@ npm run build       # build strony do web/dist
 
 ## Zmienne środowiskowe i sekrety
 
-| Nazwa                   | Gdzie lokalnie                                | Gdzie na produkcji                                                    | Do czego                                                                                                      |
-| ----------------------- | --------------------------------------------- | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `VITE_API_URL`          | `web/.env.local`                              | zmienna repozytorium GitHub (Settings › Variables)                    | Adres Workera wbudowywany w stronę. Publiczny, to nie sekret. Bez niej build w CI (poza PR-ami) się przerywa. |
-| `GEMINI_API_KEY`        | `worker/.dev.vars`                            | sekret Workera: `cd worker && npx wrangler secret put GEMINI_API_KEY` | Klucz Gemini. Nigdy w repo ani w kodzie strony.                                                               |
-| `GEMINI_MODEL`          | `worker/wrangler.toml` (`[vars]`)             | to samo                                                               | Nazwa modelu Gemini.                                                                                          |
-| `ALLOWED_ORIGINS`       | `worker/.dev.vars` (np. `http://localhost:*`) | `worker/wrangler.toml` (`[vars]`)                                     | Originy dopuszczone przez CORS, oddzielone przecinkami.                                                       |
-| `CLOUDFLARE_API_TOKEN`  | nie jest potrzebny                            | sekret repozytorium GitHub                                            | Token API Cloudflare, którym CI wdraża Workera (`wrangler deploy`).                                           |
-| `CLOUDFLARE_ACCOUNT_ID` | nie jest potrzebny                            | sekret repozytorium GitHub                                            | Konto Cloudflare, na które CI wdraża Workera.                                                                 |
+| Nazwa                   | Gdzie lokalnie                                   | Gdzie na produkcji                                                    | Do czego                                                                                                      |
+| ----------------------- | ------------------------------------------------ | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `VITE_API_URL`          | `web/.env.local`                                 | zmienna repozytorium GitHub (Settings › Variables)                    | Adres Workera wbudowywany w stronę. Publiczny, to nie sekret. Bez niej build w CI (poza PR-ami) się przerywa. |
+| `GEMINI_API_KEY`        | `worker/.dev.vars`                               | sekret Workera: `cd worker && npx wrangler secret put GEMINI_API_KEY` | Klucz Gemini. Nigdy w repo ani w kodzie strony.                                                               |
+| `GEMINI_MODEL`          | `worker/wrangler.toml` (`[vars]`)                | to samo                                                               | Nazwa modelu Gemini.                                                                                          |
+| `ALLOWED_ORIGINS`       | `worker/.dev.vars` (np. `http://localhost:5173`) | `worker/wrangler.toml` (`[vars]`)                                     | Originy dopuszczone przez CORS, oddzielone przecinkami, porównywane dokładnie (z portem).                     |
+| `CLOUDFLARE_API_TOKEN`  | nie jest potrzebny                               | sekret repozytorium GitHub                                            | Token API Cloudflare, którym CI wdraża Workera (`wrangler deploy`).                                           |
+| `CLOUDFLARE_ACCOUNT_ID` | nie jest potrzebny                               | sekret repozytorium GitHub                                            | Konto Cloudflare, na które CI wdraża Workera.                                                                 |
 
 `worker/.dev.vars` i `web/.env.local` są w `.gitignore`. W repo są tylko wzory `.dev.vars.example` i `.env.example`.
 

@@ -57,7 +57,7 @@ function fakeRateLimiter(decision: RateLimitDecision = { ok: true }): RateLimite
 }
 
 function configWith(model: ModelAdapter, rateLimiter = fakeRateLimiter()): HandlerConfig {
-  return { allowedOrigins: [DEMO_ORIGIN, 'http://localhost:*'], model, rateLimiter };
+  return { allowedOrigins: [DEMO_ORIGIN, 'http://localhost:5173'], model, rateLimiter };
 }
 
 /** Konfiguracja dla testów, w których model zawsze odpowiada poprawnie. */
@@ -186,7 +186,7 @@ describe('POST /analyze', () => {
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe(DEMO_ORIGIN);
   });
 
-  it('dopuszcza localhost na dowolnym porcie, gdy konfiguracja ma wildcard portu', async () => {
+  it('dopuszcza localhost z portem wpisanym w konfiguracji', async () => {
     const response = await handleRequest(
       analyzeRequest(validBody, 'http://localhost:5173'),
       config,
@@ -194,6 +194,15 @@ describe('POST /analyze', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('http://localhost:5173');
+  });
+
+  it('odrzuca localhost na porcie spoza konfiguracji', async () => {
+    const response = await handleRequest(
+      analyzeRequest(validBody, 'http://localhost:5174'),
+      config,
+    );
+
+    expect(response.status).toBe(403);
   });
 
   it('odrzuca localhost 403, gdy konfiguracja (produkcyjna) go nie dopuszcza', async () => {

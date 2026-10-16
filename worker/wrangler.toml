@@ -3,8 +3,8 @@ main = "src/index.ts"
 compatibility_date = "2026-10-01"
 
 [vars]
-# Lista originów oddzielonych przecinkami; `*` w miejscu portu dopuszcza dowolny port.
-# Lokalnie nadpisywane w .dev.vars (np. o http://localhost:*).
+# Lista originów oddzielonych przecinkami, porównywanych dokładnie.
+# Lokalnie nadpisywana w .dev.vars (np. o http://localhost:5173).
 ALLOWED_ORIGINS = "https://callmemichal.github.io"
 # Model Gemini (darmowy tier). Flash-Lite, bo Flash z domyślnym „myśleniem” analizował 12-stronicową
 # umowę testową ~120 s, a Flash-Lite ~11 s (limit: Wynik w mniej niż 30 s).
