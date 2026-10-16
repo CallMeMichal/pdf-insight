@@ -1,12 +1,16 @@
+import { z } from 'zod';
+
 export * from './limits';
 export * from './result';
 
 /** Ciało żądania `POST /analyze`. */
-export interface AnalyzeRequest {
-  text: string;
-  fileName: string;
-  pages: number;
-}
+export const analyzeRequestSchema = z.object({
+  text: z.string(),
+  fileName: z.string(),
+  pages: z.number().int().min(1),
+});
+
+export type AnalyzeRequest = z.infer<typeof analyzeRequestSchema>;
 
 /** Maszynowy kod błędu w ciele odpowiedzi Workera (`{ error: AnalyzeErrorCode }`). */
 export type AnalyzeErrorCode =

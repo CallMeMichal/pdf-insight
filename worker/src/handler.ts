@@ -1,4 +1,6 @@
+import type { z } from 'zod';
 import {
+  analyzeRequestSchema,
   MAX_AMOUNTS,
   MAX_DATE_MENTIONS,
   MAX_TEXT_LENGTH,
@@ -50,23 +52,14 @@ function error(code: AnalyzeErrorCode, headers?: Record<string, string>): Respon
  */
 const MAX_BODY_LENGTH = 6 * MAX_TEXT_LENGTH + 64 * 1024;
 
-function parseAnalyzeRequest(body: unknown): AnalyzeRequest | null {
-  if (typeof body !== 'object' || body === null) return null;
-  const { text, fileName, pages } = body as Record<string, unknown>;
-  if (typeof text !== 'string' || typeof fileName !== 'string') return null;
-  if (typeof pages !== 'number' || !Number.isInteger(pages) || pages < 1) return null;
-  return { text, fileName, pages };
-}
-
-function parseGeneratedResult(text: string): GeneratedResult | null {
-  let raw: unknown;
+/** Parsuje JSON i waliduje go schematem; `null`, gdy nie jest JSON-em albo nie pasuje. */
+function parseJson<T>(text: string, schema: z.ZodType<T>): T | null {
   try {
-    raw = JSON.parse(text);
+    const parsed = schema.safeParse(JSON.parse(text));
+    return parsed.success ? parsed.data : null;
   } catch {
     return null;
   }
-  const parsed = generatedResultSchema.safeParse(raw);
-  return parsed.success ? parsed.data : null;
 }
 
 /** Automatyczna ponowna Próba po niepoprawnej odpowiedzi modelu — łącznie dwie Próby. */
@@ -98,7 +91,7 @@ async function runAttempts(documentText: string, model: ModelAdapter): Promise<A
         error: response.error === 'RATE_LIMITED' ? 'AI_QUOTA_EXCEEDED' : 'AI_PROVIDER_ERROR',
       };
     }
-    const generated = parseGeneratedResult(response.text);
+    const generated = parseJson(response.text, generatedResultSchema);
     if (generated) return { ok: true, generated };
   }
   return { ok: false, error: 'INVALID_RESULT' };
@@ -138,13 +131,7 @@ export async function handleRequest(request: Request, config: HandlerConfig): Pr
 
   const rawBody = await request.text();
   if (rawBody.length > MAX_BODY_LENGTH) return error('TEXT_TOO_LONG', cors);
-  let body: unknown;
-  try {
-    body = JSON.parse(rawBody);
-  } catch {
-    return error('INVALID_INPUT', cors);
-  }
-  const analyzeRequest = parseAnalyzeRequest(body);
+  const analyzeRequest = parseJson(rawBody, analyzeRequestSchema);
   if (!analyzeRequest) return error('INVALID_INPUT', cors);
   if (!analyzeRequest.text.trim()) return error('EMPTY_TEXT', cors);
   if (analyzeRequest.text.length > MAX_TEXT_LENGTH) return error('TEXT_TOO_LONG', cors);
