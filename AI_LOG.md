@@ -26,13 +26,7 @@ Prompty do Claude Code były krótkie, bo kontekst niosły skille, glosariusz i 
 
 1. **`/grill-with-docs _materials`** — przesłuchanie wymagań na podstawie briefu i testowej umowy. AI zauważyło w umowie rzeczy ważne dla decyzji (aneks jako skan, kilkadziesiąt kwot w trzech walutach, próba prompt injection na str. 4) i zadało cztery rundy pytań, każde z rekomendacją. Odpowiedzi były krótkie: „Q1 — niech będzie Cloudflare Workers, Q2 — Gemini Flash, Q3 — A, Q4 — A…”. **Wynik:** architektura (tekst wyciągany w przeglądarce, proxy w Workerze), reguły treści Wyniku (typ z Dokumentu głównego, jedna Kwota na znaczenie, daty z precyzją z dokumentu, kwartał jako rok), blok `meta`, limity Analiz i glosariusz [CONTEXT.md](CONTEXT.md).
 
-2. **„A nie da się tego zrobić w .NET? Mam Claude, to może z tego skorzystamy.”** — pytanie zadane w trakcie przesłuchania. AI rozpisało hosting .NET (Cloudflare Workers go nie uruchamiają, darmowe plany z usypianiem instancji mają cold start 30–60 s, co łamie wymaganie Wyniku w mniej niż 30 s) i wyjaśniło, że subskrypcja Claude nie obejmuje API, które jest płatne z góry. **Wynik:** świadomy wybór Cloudflare Workers i darmowego planu Gemini zamiast backendu w .NET i płatnego modelu.
-
-3. **`/to-spec`, `/to-tickets`, a potem „A możemy to dodać do GitHub Issues?”** — skille zamieniły ustalenia w specyfikację i tickety jako lokalne pliki markdown. **Wynik:** spec (#1) i dziewięć ticketów w pionowych plastrach (#2–#10) w GitHub Issues, z zależnościami „blocked by” i kryteriami akceptacji. Walking skeleton (#2) był wdrożony na Pages i Cloudflare, zanim powstała jakakolwiek logika.
-
-4. **`/implement 5`, a w trakcie: „Dodaj, żeby wyskakiwało jakieś ostrzeżenie po przekroczeniu 5 Analiz na minutę na IP.”** — typowy przebieg ticketu: skill każe zrealizować ticket z TDD na uzgodnionych granicach, uruchomić typecheck i testy, zrobić `/code-review` i commit, a polecenia po drodze korygują zakres. **Wynik:** osobne kody błędu dla limitu minutowego i dobowego w Workerze oraz ostrzeżenie w web z czasem z `Retry-After`. Test tego ostrzeżenia na produkcji pokazał, że limit minutowy jest tam tylko przybliżony (patrz „Gdzie AI się pomyliło”).
-
-5. **Prompt Analizy dla Gemini** (`worker/src/prompt.ts`) — prompt, który wykonuje właściwą pracę aplikacji. Instrukcja systemowa (skrót):
+1. **Prompt Analizy dla Gemini** (`worker/src/prompt.ts`) — prompt, który wykonuje właściwą pracę aplikacji. Instrukcja systemowa (skrót):
 
    ```text
    You are a document analysis engine. [...] Use only information present in the document text.
@@ -157,15 +151,3 @@ Odczyt PDF-a w przeglądarce trwał 0,2–0,3 s także przy 9,9 MB, więc rozmia
 - Podgląd JSON-a można przewijać z klawiatury (zgłoszenie axe `scrollable-region-focusable`).
 - `meta description` na stronie. Lighthouse: dostępność 100/100. axe (WCAG 2.2 AA): ekran startowy, Wynik i ekran błędu bez uwag.
 
-### Uproszczenie kodu
-
-Cel: kod, który da się wytłumaczyć w kilka minut. Claude przejrzał całe repo, zaproponował listę uproszczeń z kosztami każdego i dopiero po akceptacji je wprowadził, każde w osobnym commicie:
-
-1. **Jeden limit Analiz.** Został tylko limit dobowy w Durable Object. Limit minutowy z bindingu Rate Limiting był na produkcji tylko przybliżony (ADR 0001).
-2. **Dwa kody błędu modelu** (`RATE_LIMITED`, `PROVIDER_ERROR`) zamiast pięciu, bo handler i tak rozróżniał tylko te dwa przypadki.
-3. **Mniej kodów błędu API.** `PAYLOAD_TOO_LARGE` scalony z `TEXT_TOO_LONG`, `METHOD_NOT_ALLOWED` z `NOT_FOUND`.
-4. **Limit Kwot i dat w jednym miejscu.** Schemat Wyniku nie ma już `.max()` dla tych list, więc nie trzeba osobnego schematu dla Gemini ani przycinania niesprawdzonego JSON-a. Listy przycina `toResult` po walidacji.
-5. **`request.text()`** zamiast ręcznego strumieniowego odczytu ciała.
-6. **Żądanie walidowane schematem Zod** (`analyzeRequestSchema`). Jedno `parseJson` obsługuje i żądanie, i odpowiedź modelu.
-7. **Waluta sprawdzana regexem**, bez wpisanej na stałe listy kodów ISO 4217.
-8. **CORS z dokładną listą originów**, bez `*` w miejscu portu.
