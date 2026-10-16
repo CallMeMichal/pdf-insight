@@ -132,4 +132,4 @@ Interfejs i odczyt PDF-a przez pdf.js były sprawdzane ręcznie w przeglądarce,
 
 ## Praca z AI
 
-Proces, kluczowe prompty i miejsca, w których AI się pomyliło: [AI_LOG.md](AI_LOG.md).
+Narzędzia, kluczowe prompty i miejsca, w których AI się pomyliło: [AI_LOG.md](AI_LOG.md).
