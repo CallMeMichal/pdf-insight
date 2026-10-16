@@ -36,14 +36,6 @@
 
    Wiadomość użytkownika zawiera tekst Dokumentu między znacznikami `<document-UUID>` i `</document-UUID>`. UUID jest losowy przy każdej Próbie, więc dokument nie może „zamknąć” bloku i dopisać poleceń. Po bloku jest przypomnienie, że instrukcje z dokumentu są ignorowane. Odpowiedź wymusza tryb JSON ze schematem (`responseJsonSchema`) wyprowadzonym ze schematu Zod Wyniku. Instrukcja jest po angielsku celowo: polska instrukcja ciągnęłaby Wynik dokumentów obcojęzycznych w stronę polskiego.
 
-4. **„Chcę teraz uprościć kod jak najbardziej się da, żeby był prosty do wytłumaczenia. Co można zrobić?”**: zadane po końcowym przeglądzie, bo brief wymaga rozumienia każdej linijki. AI przejrzało całe repo i zaproponowało uproszczenia, każde z kosztem. Wprowadziło je dopiero po akceptacji, każde w osobnym commicie. **Wynik:**
-   - jeden limit Analiz (dobowy) zamiast dwóch,
-   - 2 kody błędu modelu zamiast 5 i mniej kodów błędu API,
-   - limit Kwot i dat w jednym miejscu (`toResult`) zamiast osobnego schematu dla Gemini,
-   - walidacja żądania schematem Zod,
-   - waluta sprawdzana regexem zamiast listą ISO 4217,
-   - CORS z dokładną listą originów.
-
 ## Gdzie AI się pomyliło
 
 - **Wybór modelu bez pomiaru (#4).**
