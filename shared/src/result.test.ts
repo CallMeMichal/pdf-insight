@@ -124,14 +124,11 @@ describe('resultSchema — niepoprawne Wyniki', () => {
     });
   });
 
-  it.each(['pln', 'PL', 'PLNN', 'zł', '', 'ABC', 'XYZ', 'XTS', 'XXX'])(
-    'odrzuca kod waluty %j',
-    (currency) => {
-      expectInvalid((result) => {
-        result.amounts = [{ value: 100, currency, context: 'kwota' }];
-      });
-    },
-  );
+  it.each(['pln', 'PL', 'PLNN', 'zł', ''])('odrzuca kod waluty %j', (currency) => {
+    expectInvalid((result) => {
+      result.amounts = [{ value: 100, currency, context: 'kwota' }];
+    });
+  });
 
   it.each(['PL', 'pol', 'p', 'pl-PL', ''])('odrzuca kod języka %j', (language) => {
     expectInvalid((result) => {

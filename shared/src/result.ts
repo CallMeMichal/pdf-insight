@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { ISO_4217_CODES } from './currencies';
 import { MAX_KEY_POINTS, MAX_KEYWORDS, MIN_KEY_POINTS } from './limits';
 
 export const documentTypeSchema = z.enum(['faktura', 'umowa', 'oferta', 'raport', 'inne']);
@@ -26,11 +25,8 @@ export const partialDateSchema = z.string().refine(isPartialDate, {
 
 export const amountSchema = z.object({
   value: z.number(),
-  /** Kod waluty ISO 4217, np. `PLN` — istniejący, nie tylko trzy wielkie litery. */
-  currency: z
-    .string()
-    .regex(/^[A-Z]{3}$/)
-    .refine((code) => ISO_4217_CODES.has(code), { message: 'Nieznany kod waluty ISO 4217' }),
+  /** Kod waluty ISO 4217, np. `PLN`. */
+  currency: z.string().regex(/^[A-Z]{3}$/),
   context: z.string(),
 });
 
