@@ -12,12 +12,29 @@ Na zrzucie widać Wynik Analizy 12-stronicowej umowy testowej z zadania rekrutac
 
 1. Użytkownik przeciąga PDF na stronę albo wybiera go z dysku. Przeglądarka sprawdza typ, rozmiar (do 10 MB) i liczbę plików.
 2. pdf.js wyciąga tekst w przeglądarce. Plik PDF nigdzie nie jest wysyłany, idzie tylko tekst, nazwa pliku i liczba stron.
-3. Cloudflare Worker sprawdza origin i dane wejściowe, potem limity Analiz na adres IP, i pyta Gemini o Wynik w trybie JSON ze schematem.
+3. Cloudflare Worker sprawdza origin i dane wejściowe, potem dobowy limit Analiz na adres IP, i pyta Gemini o Wynik w trybie JSON ze schematem.
 4. Worker waliduje odpowiedź schematem Zod. Jeśli jest niepoprawna, ponawia jeden raz, a potem zwraca błąd.
 5. Strona waliduje Wynik ponownie i pokazuje go w sekcjach: podsumowanie, najważniejsze punkty, Organizacje i Osoby, Kwoty, Wzmianki o dacie, słowa kluczowe. Pełny JSON można podejrzeć i pobrać.
 6. Wynik trafia do Historii w przeglądarce (ostatnie 10).
 
 Terminy pisane wielką literą (Dokument, Analiza, Wynik, Kwota, Historia itd.) są zdefiniowane w [CONTEXT.md](CONTEXT.md).
+
+## Zakres z briefu
+
+| ID   | Priorytet | Wymaganie         | Status    | Jak                                                                                                                                          |
+| ---- | --------- | ----------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| F-01 | MUST      | Wgrywanie PDF     | ✅        | Przeciąganie i wybór pliku. Przeglądarka odrzuca pliki inne niż PDF, większe niż 10 MB i kilka plików naraz, każdy z własnym komunikatem.    |
+| F-02 | MUST      | Odczyt tekstu     | ✅        | pdf.js w przeglądarce, ze wszystkich stron PDF-a z warstwą tekstową.                                                                         |
+| F-03 | MUST      | Podsumowanie      | ✅        | 3–5 zdań w Języku dokumentu. Prompt pozwala tylko na fakty z Dokumentu, a brak informacji to `null` lub `[]`.                                |
+| F-04 | MUST      | Dane strukturalne | ✅        | Schemat Zod w `shared/`, walidowany w Workerze (1 ponowna Próba, potem błąd) i jeszcze raz w przeglądarce przed wyświetleniem.               |
+| F-05 | MUST      | Widok i eksport   | ✅        | Wynik w sekcjach, zwijany podgląd JSON-a i pobranie pliku `.json` o tej samej treści.                                                        |
+| F-06 | MUST      | Stany interfejsu  | ✅        | Stan pusty (pole wyboru pliku), etapy ładowania (odczyt, Analiza), błąd po polsku z przyciskiem „Spróbuj ponownie”, gdy ponowienie ma sens.  |
+| F-07 | MUST      | Publiczne demo    | ✅        | https://callmemichal.github.io/pdf-insight/, deploy przez GitHub Actions.                                                                    |
+| F-08 | SHOULD    | Długie dokumenty  | ❌ celowo | Bez dzielenia na fragmenty: Gemini mieści w jednym wywołaniu do 500 000 znaków tekstu (około 200 stron), dłuższy Dokument dostaje komunikat. |
+| F-09 | SHOULD    | Historia analiz   | ✅        | Ostatnie 10 Wyników w `localStorage`, bez tekstu Dokumentu. Wpis można otworzyć, usunąć albo wyczyścić całą Historię.                        |
+| F-10 | COULD     | OCR               | ❌        | Skan bez warstwy tekstowej dostaje komunikat zamiast Wyniku (patrz znane ograniczenia).                                                      |
+
+Do schematu z briefu doszło pole `meta` (`analyzedAt`, `model`, `schemaVersion`). Brief pozwala dodawać pola, nie usuwać.
 
 ## Architektura
 
